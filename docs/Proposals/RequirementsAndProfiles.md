@@ -100,7 +100,7 @@ The accuracy requirements are relaxed for some single-precision functions if the
 
 | Data Type | Function | Error Tolerance |
 | :---- | :---- | :---- |
-| `float` | `log` | For $x$ in the domain [0.5, 2], the maximum absolute error is ≤ $2^{-21}$;<br>otherwise, the maximum error is ≤ 3 ulp for the full profile and ≤ 4 ulp<br>for the embedded profile |
+| `float` | `log` | For x in the domain [0.5, 2], the maximum absolute error is ≤ $2^{-21}$;<br>otherwise, the maximum error is ≤ 3 ulp for the full profile and ≤ 4 ulp<br>for the embedded profile |
 
 #### Numerical Consistency
 
@@ -153,8 +153,8 @@ To illustrate these requirements, the following table presents the error toleran
 
 | Data Type | Function | Error Tolerance |
 | :---- | :---- | :---- |
-| `f16` | `log` | For $x$ in the domain [0.5, 2], the maximum absolute error is ≤ $2^{-7}$;<br>otherwise, the maximum error is ≤ 3 ulp |
-| `f32` | `log` | For $x$ in the domain [0.5, 2], the maximum absolute error is ≤ $2^{-21}$;<br>otherwise, the maximum error is ≤ 3 ulp |
+| `f16` | `log` | For x in the domain [0.5, 2], the maximum absolute error is ≤ $2^{-7}$;<br>otherwise, the maximum error is ≤ 3 ulp |
+| `f32` | `log` | For x in the domain [0.5, 2], the maximum absolute error is ≤ $2^{-21}$;<br>otherwise, the maximum error is ≤ 3 ulp |
 
 #### Numerical Consistency
 
@@ -222,9 +222,9 @@ The following table presents the measured error for the `log` function.
 
 | Data Type | Function | Measured Error |
 | :---- | :---- | :---- |
-| `float` | `logf` | ≤ 2 ulp for $x$ in the domain [$10^{-6}$, $10^6$] |
-| `float` | `__logf` | ≤ 2 ulp for $x$ in the domain [$10^{-6}$, $10^6$] |
-| `double` | `log` | ≤ 1 ulp for $x$ in the domain [$10^{-6}$, $10^6$] |
+| `float` | `logf` | ≤ 2 ulp for x in the domain $[10^{-6}, 10^6]$ |
+| `float` | `__logf` | ≤ 2 ulp for x in the domain $[10^{-6}, 10^6]$ |
+| `double` | `log` | ≤ 1 ulp for x in the domain $[10^{-6}, 10^6]$ |
 
 Intrinsic math functions are faster and less accurate versions of their corresponding standard math functions. They have the same name prefixed with `__`, such as `__logf`.
 
@@ -289,7 +289,7 @@ The following table presents the measured error for the `log` function.
 | `__nv_bfloat16` | `hlog` | ≤ 0 ulp |
 | `__half` | `hlog` | ≤ 0 ulp |
 | `float` | `logf` | ≤ 1 ulp |
-| `float` | `__logf` | For $x$ in the domain [0.5, 2], the maximum absolute error is ≤ $2^{-21.41}$;<br>otherwise, the maximum error is ≤ 3 ulp |
+| `float` | `__logf` | For x in the domain [0.5, 2], the maximum absolute error is ≤ $2^{-21.41}$;<br>otherwise, the maximum error is ≤ 3 ulp |
 | `double` | `log` | ≤ 1 ulp |
 | `__float128` | `__nv_fp128_log` | ≤ 1 ulp |
 
