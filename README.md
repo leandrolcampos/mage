@@ -13,7 +13,7 @@ Mage also explores whether GPU-optimized implementations can generalize beyond G
 
 ## Key LLVM Contributions
 
-- [Elapsed-time measurement between GPU events in LLVM Offload](https://github.com/llvm/llvm-project/pull/186856): adds support for measuring elapsed time between GPU events across the Offload stack, including the Offload API, the plugin interface, and backend implementations for CUDA and AMDGPU. This contribution enables reliable cross-backend timing of kernel launches and other queue-submitted work, which is important for Mage's benchmarking infrastructure.
+- [Elapsed-time measurement between GPU events in LLVM Offload](https://github.com/llvm/llvm-project/pull/186856): adds support for measuring elapsed time between GPU events across the Offload stack, including the Offload API, the plugin interface, and backend implementations for AMDGPU and CUDA. This contribution enables reliable cross-backend timing of kernel launches and other queue-submitted work, which is important for Mage's benchmarking infrastructure.
 
 ## Contributing
 
