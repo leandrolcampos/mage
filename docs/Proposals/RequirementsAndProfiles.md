@@ -1,8 +1,8 @@
 # Numerical Requirements and Accuracy Profiles for Portable GPU Math Functions
 
-Author: Leandro A. Lacerda Campos
-
-Date: March 13, 2026
+- Author: Leandro A. Lacerda Campos
+- Status: Draft for feedback
+- Last updated: March 13, 2026
 
 ## Introduction
 
