@@ -4,23 +4,6 @@ Author: Leandro A. Lacerda Campos
 
 Date: March 13, 2026
 
-## Table of Contents
-
-* [Introduction](#introduction)
-* [Open Standards](#open-standards)
-  * [OpenCL C](#opencl-c)
-  * [WebGPU Shading Language (WGSL)](#webgpu-shading-language-wgsl)
-* [GPU Platforms](#gpu-platforms)
-  * [AMD ROCm](#amd-rocm)
-  * [NVIDIA CUDA](#nvidia-cuda)
-* [Other Math Libraries](#other-math-libraries)
-  * [glibc libmvec](#glibc-libmvec)
-  * [Intel SVML](#intel-svml)
-  * [SLEEF](#sleef)
-* [Proposed Numerical Requirements and Accuracy Profiles](#proposed-numerical-requirements-and-accuracy-profiles)
-  * [A Portable GPU Math Library](#a-portable-gpu-math-library)
-* [References](#references)
-
 ## Introduction
 
 This document proposes numerical requirements and accuracy profiles for portable GPU math functions. It contains answers to questions such as: which accuracy levels should be guaranteed; whether multiple accuracy profiles are needed to represent trade-offs between accuracy and performance; which data types and rounding modes should be supported; how to handle IEEE 754 special values, subnormals, and signed zeros; what can be said about floating-point exceptions; and to what extent results should be numerically consistent across GPU platforms.
