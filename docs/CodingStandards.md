@@ -22,7 +22,7 @@ The ultimate goal of these guidelines is to increase the readability and maintai
 
 Mage is written in standard C++17. Avoid unnecessary vendor-specific extensions.
 
-Use language and library features that are available in the host toolchain used to build Mage. Mage is expected to be built with the Clang toolchain described in [`BuildingLLVM.md`](BuildingLLVM.md).
+Use language and library features that are available in the host toolchain used to build Mage. Mage is expected to be built with the Clang toolchain described in [BuildingLLVM](BuildingLLVM.md).
 
 ### C++ Standard Library
 
