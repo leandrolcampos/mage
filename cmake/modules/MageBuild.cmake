@@ -62,14 +62,14 @@ endfunction()
 
 # Resolves the build context for the current leaf build, including the target
 # triple, backend classification, optional GPU architecture, and test command.
-# Exports the resolved values to the parent scope.
+# The resolved values are persisted in CACHE INTERNAL so subdirectories in the
+# leaf build can observe them reliably.
 function(mage_resolve_leaf_context)
   set(mage_target_triple "${MAGE_INTERNAL_TARGET_TRIPLE}")
   set(mage_target_is_gpu OFF)
   set(mage_target_is_amdgpu OFF)
   set(mage_target_is_nvptx OFF)
   set(mage_gpu_architecture "")
-  set(mage_test_cmd "${MAGE_TEST_CMD}")
 
   if(mage_target_triple STREQUAL "default")
     # Host build.
@@ -84,8 +84,6 @@ function(mage_resolve_leaf_context)
     elseif(host_can_resolve_gpu_native_arch)
       set(mage_gpu_architecture "native")
     endif()
-
-    mage_resolve_llvm_link()
   elseif(mage_target_triple STREQUAL "nvptx64-nvidia-cuda")
     set(mage_target_is_gpu ON)
     set(mage_target_is_nvptx ON)
@@ -97,36 +95,30 @@ function(mage_resolve_leaf_context)
     elseif(host_can_resolve_gpu_native_arch)
       set(mage_gpu_architecture "native")
     endif()
-
-    mage_resolve_llvm_link()
   else()
     message(FATAL_ERROR
       "Unsupported target triple in mage_resolve_leaf_context: "
       "${mage_target_triple}")
   endif()
 
-  if(mage_target_is_gpu AND mage_test_cmd STREQUAL "")
-    if(MAGE_GPU_LOADER STREQUAL "")
-      message(FATAL_ERROR
-        "GPU tests require MAGE_GPU_LOADER or MAGE_TEST_CMD")
-    endif()
-
-    if(MAGE_GPU_LOADER_ARGS STREQUAL "")
-      set(mage_test_cmd "${MAGE_GPU_LOADER}")
-    else()
-      set(mage_test_cmd "${MAGE_GPU_LOADER} ${MAGE_GPU_LOADER_ARGS}")
-    endif()
-  endif()
-
-  set(MAGE_TARGET_TRIPLE "${mage_target_triple}" PARENT_SCOPE)
-  set(MAGE_TARGET_IS_GPU "${mage_target_is_gpu}" PARENT_SCOPE)
-  set(MAGE_TARGET_IS_AMDGPU "${mage_target_is_amdgpu}" PARENT_SCOPE)
-  set(MAGE_TARGET_IS_NVPTX "${mage_target_is_nvptx}" PARENT_SCOPE)
-  set(MAGE_GPU_ARCHITECTURE "${mage_gpu_architecture}" PARENT_SCOPE)
-  set(MAGE_TEST_CMD "${mage_test_cmd}" PARENT_SCOPE)
+  set(MAGE_TARGET_TRIPLE "${mage_target_triple}" CACHE INTERNAL
+    "Target triple for the current Mage build" FORCE)
+  set(MAGE_TARGET_IS_GPU "${mage_target_is_gpu}" CACHE INTERNAL
+    "Whether the current Mage build targets a GPU" FORCE)
+  set(MAGE_TARGET_IS_AMDGPU "${mage_target_is_amdgpu}" CACHE INTERNAL
+    "Whether the current Mage build targets AMDGPU" FORCE)
+  set(MAGE_TARGET_IS_NVPTX "${mage_target_is_nvptx}" CACHE INTERNAL
+    "Whether the current Mage build targets NVPTX" FORCE)
+  set(MAGE_GPU_ARCHITECTURE "${mage_gpu_architecture}" CACHE INTERNAL
+    "GPU architecture for the current Mage build" FORCE)
 endfunction()
 
-function(mage_should_build_unit_tests out_var)
+function(mage_should_build_unittests out_var)
+  if(NOT BUILD_TESTING)
+    set(${out_var} OFF PARENT_SCOPE)
+    return()
+  endif()
+
   if(NOT MAGE_TARGET_IS_GPU)
     set(${out_var} ON PARENT_SCOPE)
     return()
@@ -154,18 +146,60 @@ function(mage_should_build_unit_tests out_var)
   endif()
 
   message(FATAL_ERROR
-    "Unsupported target triple in mage_should_build_unit_tests: "
+    "Unsupported target triple in mage_should_build_unittests: "
     "${MAGE_TARGET_TRIPLE}")
 endfunction()
+
+function(mage_get_registered_library_targets out_archive_var out_bitcode_var)
+  get_property(mage_archive_targets GLOBAL PROPERTY MAGE_ARCHIVE_TARGETS)
+  get_property(mage_bitcode_targets GLOBAL PROPERTY MAGE_BITCODE_TARGETS)
+
+  if(NOT mage_archive_targets)
+    set(mage_archive_targets)
+  endif()
+
+  if(NOT mage_bitcode_targets)
+    set(mage_bitcode_targets)
+  endif()
+
+  list(REMOVE_DUPLICATES mage_archive_targets)
+  list(REMOVE_DUPLICATES mage_bitcode_targets)
+
+  set(${out_archive_var} "${mage_archive_targets}" PARENT_SCOPE)
+  set(${out_bitcode_var} "${mage_bitcode_targets}" PARENT_SCOPE)
+ endfunction()
 
 function(mage_configure_leaf_build)
   mage_resolve_leaf_context()
 
   add_subdirectory(lib)
 
-  mage_should_build_unit_tests(mage_build_unit_tests)
-  if(mage_build_unit_tests)
+  mage_get_registered_library_targets(
+    mage_leaf_archive_targets
+    mage_leaf_bitcode_targets)
+
+  add_custom_target(mage)
+  if(mage_leaf_archive_targets)
+    add_dependencies(mage ${mage_leaf_archive_targets})
+  endif()
+  if(mage_leaf_bitcode_targets)
+    add_dependencies(mage ${mage_leaf_bitcode_targets})
+   endif()
+
+  mage_should_build_unittests(mage_build_unittests)
+  if(mage_build_unittests)
     add_subdirectory(unittests)
+
+    add_custom_target(check-mage
+      COMMAND
+        "${CMAKE_CTEST_COMMAND}"
+        --output-on-failure
+        --test-dir
+        "${CMAKE_BINARY_DIR}"
+      DEPENDS
+        mage
+        mage-unittests-build
+      USES_TERMINAL)
   else()
     add_custom_target(check-mage)
   endif()
@@ -175,8 +209,9 @@ endfunction()
 # targets to build or test that sub-build from the top-level build tree.
 function(mage_add_gpu_subbuild gpu_target)
   set(subbuild_binary_dir "${CMAKE_BINARY_DIR}/${gpu_target}")
+  set(config_target "configure-mage-${gpu_target}")
 
-  ExternalProject_Add("mage-${gpu_target}"
+  ExternalProject_Add("${config_target}"
     PREFIX "${CMAKE_BINARY_DIR}/.superbuild/${gpu_target}"
     SOURCE_DIR "${CMAKE_SOURCE_DIR}"
     BINARY_DIR "${subbuild_binary_dir}"
@@ -189,24 +224,25 @@ function(mage_add_gpu_subbuild gpu_target)
       -DMAGE_GPU_TARGETS=
       -DMAGE_FORCE_AMDGPU_ARCH=${MAGE_FORCE_AMDGPU_ARCH}
       -DMAGE_FORCE_NVPTX_ARCH=${MAGE_FORCE_NVPTX_ARCH}
-      -DLLVM_LIT=${LLVM_LIT}
-      -DLLVM_LINK=${LLVM_LINK}
       -DMAGE_GPU_LOADER=${MAGE_GPU_LOADER}
       -DMAGE_GPU_LOADER_ARGS=${MAGE_GPU_LOADER_ARGS}
-      -DMAGE_TEST_CMD=${MAGE_TEST_CMD}
     BUILD_COMMAND ""
     INSTALL_COMMAND ""
     TEST_COMMAND ""
     USES_TERMINAL_CONFIGURE TRUE)
 
-  add_custom_target("build-mage-${gpu_target}"
-    COMMAND "${CMAKE_COMMAND}" --build "${subbuild_binary_dir}"
-    DEPENDS "mage-${gpu_target}"
+  add_custom_target("mage-${gpu_target}"
+    COMMAND
+      "${CMAKE_COMMAND}" --build "${subbuild_binary_dir}" --target mage
+    DEPENDS
+      "${config_target}"
     USES_TERMINAL)
 
   add_custom_target("check-mage-${gpu_target}"
-    COMMAND "${CMAKE_COMMAND}" --build "${subbuild_binary_dir}" --target check-mage
-    DEPENDS "mage-${gpu_target}"
+    COMMAND
+      "${CMAKE_COMMAND}" --build "${subbuild_binary_dir}" --target check-mage
+    DEPENDS
+      "${config_target}"
     USES_TERMINAL)
 endfunction()
 
@@ -221,11 +257,23 @@ function(mage_configure_build)
   set(MAGE_INTERNAL_TARGET_TRIPLE "default")
   mage_configure_leaf_build()
 
+  set(mage_gpu_build_targets)
+
   foreach(gpu_target IN LISTS MAGE_GPU_TARGETS)
     if(gpu_target STREQUAL "")
       continue()
     endif()
 
     mage_add_gpu_subbuild("${gpu_target}")
+    list(APPEND mage_gpu_build_targets "mage-${gpu_target}")
   endforeach()
+
+  # The default root build should construct host artifacts plus every enabled
+  # GPU leaf build. This avoids the surprising behavior where `ninja -C build`
+  # only materializes the leaf directories without building their artifacts.
+  add_custom_target(mage-all ALL)
+  add_dependencies(mage-all mage)
+  if(mage_gpu_build_targets)
+    add_dependencies(mage-all ${mage_gpu_build_targets})
+  endif()
 endfunction()
