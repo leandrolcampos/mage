@@ -22,12 +22,12 @@ function(mage_validate_gpu_targets)
     if(NOT gpu_target STREQUAL "amdgcn-amd-amdhsa" AND
        NOT gpu_target STREQUAL "nvptx64-nvidia-cuda")
       message(FATAL_ERROR
-        "Unsupported GPU target '${gpu_target}' in MAGE_GPU_TARGETS")
+        "unsupported GPU target '${gpu_target}' in MAGE_GPU_TARGETS")
     endif()
 
     if(gpu_target IN_LIST seen_gpu_targets)
       message(FATAL_ERROR
-        "Duplicate GPU target '${gpu_target}' in MAGE_GPU_TARGETS")
+        "duplicate GPU target '${gpu_target}' in MAGE_GPU_TARGETS")
     endif()
 
     list(APPEND seen_gpu_targets "${gpu_target}")
@@ -50,7 +50,7 @@ function(mage_check_native_gpu_arch_support gpu_target out_var)
     check_cxx_compiler_flag("-march=native" HOST_CAN_RESOLVE_GPU_NATIVE_ARCH)
   else()
     message(FATAL_ERROR
-      "Unsupported GPU target in mage_check_native_gpu_arch_support: "
+      "unsupported GPU target in mage_check_native_gpu_arch_support: "
       "${gpu_target}")
   endif()
 
@@ -97,7 +97,7 @@ function(mage_resolve_leaf_context)
     endif()
   else()
     message(FATAL_ERROR
-      "Unsupported target triple in mage_resolve_leaf_context: "
+      "unsupported target triple in mage_resolve_leaf_context: "
       "${mage_target_triple}")
   endif()
 
@@ -131,7 +131,7 @@ function(mage_should_build_unittests out_var)
 
   if(MAGE_TARGET_IS_AMDGPU)
     message(STATUS
-      "Skipping unit tests for amdgcn-amd-amdhsa because no AMDGPU "
+      "skipping unit tests for amdgcn-amd-amdhsa because no AMDGPU "
       "architecture was detected or provided")
     set(${out_var} OFF PARENT_SCOPE)
     return()
@@ -139,14 +139,14 @@ function(mage_should_build_unittests out_var)
 
   if(MAGE_TARGET_IS_NVPTX)
     message(STATUS
-      "Skipping unit tests for nvptx64-nvidia-cuda because no NVPTX "
+      "skipping unit tests for nvptx64-nvidia-cuda because no NVPTX "
       "architecture was detected or provided")
     set(${out_var} OFF PARENT_SCOPE)
     return()
   endif()
 
   message(FATAL_ERROR
-    "Unsupported target triple in mage_should_build_unittests: "
+    "unsupported target triple in mage_should_build_unittests: "
     "${MAGE_TARGET_TRIPLE}")
 endfunction()
 
