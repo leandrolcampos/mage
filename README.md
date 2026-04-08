@@ -8,7 +8,7 @@ It also explores whether GPU-optimized implementations can generalize beyond GPU
 
 ## Building
 
-Mage is expected to be built with the Clang toolchain described in [docs/BuildingLLVM.md](docs/BuildingLLVM.md).
+Mage is expected to be built with the LLVM-based toolchain described in [docs/BuildingLLVM.md](docs/BuildingLLVM.md).
 
 For the Mage build and test interface, see [docs/Building.md](docs/Building.md).
 
