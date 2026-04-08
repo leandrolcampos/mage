@@ -8,8 +8,12 @@ include_guard(GLOBAL)
 
 include(CheckCXXCompilerFlag)
 include(ExternalProject)
-include(MageTools)
 include(MageRules)
+
+set(MAGE_INTERNAL_LEAF_BUILD OFF CACHE INTERNAL
+  "Whether this configure is a leaf build spawned by the Mage superbuild")
+set(MAGE_INTERNAL_TARGET_TRIPLE "default" CACHE INTERNAL
+  "Target triple for a Mage leaf build")
 
 function(mage_validate_gpu_targets)
   set(seen_gpu_targets)
@@ -190,12 +194,17 @@ function(mage_configure_leaf_build)
   if(mage_build_unittests)
     add_subdirectory(unittests)
 
+    set(mage_ctest_args
+      --output-on-failure
+      --test-dir "${CMAKE_BINARY_DIR}")
+
+    if(MAGE_TARGET_IS_GPU)
+      list(APPEND mage_ctest_args --parallel "${MAGE_GPU_TEST_JOBS}")
+    endif()
+
     add_custom_target(check-mage
       COMMAND
-        "${CMAKE_CTEST_COMMAND}"
-        --output-on-failure
-        --test-dir
-        "${CMAKE_BINARY_DIR}"
+        "${CMAKE_CTEST_COMMAND}" ${mage_ctest_args}
       DEPENDS
         mage
         mage-unittests-build
@@ -221,6 +230,9 @@ function(mage_add_gpu_subbuild gpu_target)
       -DMAGE_INTERNAL_TARGET_TRIPLE=${gpu_target}
       -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
       -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
+      -DMAGE_ENABLE_ASSERTIONS=${MAGE_ENABLE_ASSERTIONS}
+      -DMAGE_LLVM_ROOT=${MAGE_LLVM_ROOT}
+      -DLLVM_DIR=${LLVM_DIR}
       -DMAGE_GPU_TARGETS=
       -DMAGE_FORCE_AMDGPU_ARCH=${MAGE_FORCE_AMDGPU_ARCH}
       -DMAGE_FORCE_NVPTX_ARCH=${MAGE_FORCE_NVPTX_ARCH}

@@ -169,7 +169,7 @@ function(mage_get_common_bitcode_link_options out_var)
 endfunction()
 
 # These options are not returned by mage_get_common_link_options because they
-# are specific to GPU executables intended to run under llvm-gpu-loader.
+# are specific to GPU executables intended to run under MAGE_GPU_LOADER.
 function(mage_get_common_gpu_loader_link_options out_var)
   if(NOT MAGE_TARGET_IS_GPU)
     set(${out_var} "" PARENT_SCOPE)
@@ -824,7 +824,7 @@ function(mage_add_unittest target_name)
 
   if(MAGE_TARGET_IS_GPU)
     if(MAGE_GPU_LOADER STREQUAL "")
-      message(FATAL_ERROR "GPU unittests require MAGE_GPU_LOADER")
+      message(FATAL_ERROR "GPU unit tests require MAGE_GPU_LOADER")
     endif()
 
     if(MAGE_UNITTEST_NO_COMMON_GPU_LOADER_LINK_OPTIONS)
