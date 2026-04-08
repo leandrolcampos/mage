@@ -4,12 +4,20 @@ Mage is a research project focused on developing microarchitecture-aware and por
 
 It investigates trade-offs and derives optimization heuristics for lookup tables, polynomial evaluation, and precision extension across diverse GPU designs and under multiple accuracy profiles.
 
-Mage also explores whether GPU-optimized implementations can generalize beyond GPUs, especially in relaxed-accuracy settings, while ensuring bitwise-identical results across architectures.
+It also explores whether GPU-optimized implementations can generalize beyond GPUs, especially in relaxed-accuracy settings, while ensuring bitwise-identical results across architectures.
+
+## Building
+
+Mage is expected to be built with the Clang toolchain described in [docs/BuildingLLVM.md](docs/BuildingLLVM.md).
+
+For the Mage build and test interface, see [docs/Building.md](docs/Building.md).
+
+For repository structure and development conventions, see [docs/Developing.md](docs/Developing.md).
 
 ## Key Documents
 
 - [Roadmap](docs/Roadmap.md): research questions, initial experimental scope, and tentative timeline for Mage's initial experiments.
-- [Numerical Requirements and Accuracy Profiles for Portable GPU Math Functions](docs/Proposals/RequirementsAndProfiles.md): draft proposal for the numerical requirements and accuracy profiles targeted by Mage.
+- [Numerical Requirements and Accuracy Profiles for Portable GPU Math Functions](docs/Proposals/RequirementsAndProfiles.md): draft proposal for Mage's target numerical requirements and accuracy profiles.
 
 ## Key LLVM Contributions
 

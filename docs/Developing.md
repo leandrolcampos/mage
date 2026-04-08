@@ -4,11 +4,13 @@ This document summarizes the build tools, repository layout, and documentation c
 
 ## Build System
 
-Mage is expected to be built with the Clang toolchain described in [BuildingLLVM](BuildingLLVM.md).
+Mage is expected to be built with the LLVM-based toolchain described in [BuildingLLVM](BuildingLLVM.md).
 
 Mage uses:
 - **CMake** for build configuration;
 - **Ninja** for build execution.
+
+The Mage build and test interface itself is documented in [Building](Building.md).
 
 ## Repository Structure
 
