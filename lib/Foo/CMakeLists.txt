@@ -1,0 +1,9 @@
+mage_add_library(
+  MageFoo
+  SRCS
+    Bar.cpp
+  TARGET_KINDS
+    HOST
+    GPU
+  GENERATE_GPU_BITCODE
+)
