@@ -14,7 +14,7 @@ cmake -S . -B build -G Ninja \
   -DCMAKE_CXX_COMPILER=clang \
   -DMAGE_GPU_TARGETS="amdgcn-amd-amdhsa;nvptx64-nvidia-cuda" \
   -DCMAKE_BUILD_TYPE=Release \
-  -DMAGE_ENABLE_ASSERTIONS=ON
+  -DMAGE_FORCE_ASSERTIONS=ON
 ```
 
 ## 2. Common Build Targets
@@ -112,7 +112,7 @@ ctest --output-on-failure --test-dir build/amdgcn-amd-amdhsa -R "^BarTest$"
 Mage exposes several CMake cache variables as part of its build interface. The
 most relevant ones are:
 
-- `MAGE_ENABLE_ASSERTIONS`: enables code assertions;
+- `MAGE_FORCE_ASSERTIONS`: forces code assertions in non-Debug builds;
 - `MAGE_LLVM_ROOT`: LLVM install prefix used by Mage;
 - `LLVM_DIR`: path to the LLVM CMake package directory used by Mage;
 - `MAGE_GPU_TARGETS`: semicolon-separated GPU targets to build; this may be empty;

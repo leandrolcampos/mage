@@ -156,13 +156,3 @@ function(mage_configure_llvm_toolchain)
   message(STATUS
     "Found LLVM ${LLVM_PACKAGE_VERSION} in '${LLVM_DIR}'")
 endfunction()
-
-# Applies Mage's global assertion policy.
-function(mage_configure_assertions)
-  if(MAGE_ENABLE_ASSERTIONS)
-    add_compile_options(-UNDEBUG)
-    return()
-  endif()
-
-  add_compile_definitions(NDEBUG)
-endfunction()

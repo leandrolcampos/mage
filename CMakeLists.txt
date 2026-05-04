@@ -10,14 +10,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(CTest)
 
-set(mage_enable_assertions_default OFF)
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-  set(mage_enable_assertions_default ON)
-endif()
-
-option(MAGE_ENABLE_ASSERTIONS
-  "Enable code assertions. Defaults to ON when CMAKE_BUILD_TYPE is Debug"
-  ${mage_enable_assertions_default})
+option(MAGE_FORCE_ASSERTIONS "Force code assertions in non-Debug builds" OFF)
 
 set(MAGE_LLVM_ROOT "" CACHE PATH
   "LLVM install prefix used by Mage")
@@ -41,9 +34,9 @@ set(MAGE_GPU_LOADER_ARGS "--blocks 1 --threads 1" CACHE STRING
 set(MAGE_GPU_TEST_JOBS "1" CACHE STRING
   "Maximum number of GPU unit tests to run in parallel")
 
+include(HandleMageOptions)
 include(MageLLVM)
 include(MageBuild)
 
 mage_configure_llvm_toolchain()
-mage_configure_assertions()
 mage_configure_build()
