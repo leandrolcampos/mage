@@ -169,7 +169,7 @@ function(mage_get_common_bitcode_link_options out_var)
 endfunction()
 
 # These options are not returned by mage_get_common_link_options because they
-# are specific to GPU executables intended to run under MAGE_GPU_LOADER.
+# are specific to GPU executables intended to run under MAGE_LLVM_GPU_LOADER.
 function(mage_get_common_gpu_loader_link_options out_var)
   if(NOT MAGE_TARGET_IS_GPU)
     set(${out_var} "" PARENT_SCOPE)
@@ -761,7 +761,7 @@ endfunction()
 # into the test executable. Libraries whose symbols are used by the test
 # must be passed through LINK_LIBRARIES.
 #
-# On GPU leaves, tests are executed through MAGE_GPU_LOADER.
+# On GPU leaves, tests are executed through MAGE_LLVM_GPU_LOADER.
 function(mage_add_unittest target_name)
   set(mage_unittest_options
     NO_COMMON_COMPILE_OPTIONS
@@ -823,8 +823,8 @@ function(mage_add_unittest target_name)
   endif()
 
   if(MAGE_TARGET_IS_GPU)
-    if(MAGE_GPU_LOADER STREQUAL "")
-      message(FATAL_ERROR "GPU unit tests require MAGE_GPU_LOADER")
+    if(MAGE_LLVM_GPU_LOADER STREQUAL "")
+      message(FATAL_ERROR "GPU unit tests require MAGE_LLVM_GPU_LOADER")
     endif()
 
     if(MAGE_UNITTEST_NO_COMMON_GPU_LOADER_LINK_OPTIONS)
@@ -872,17 +872,17 @@ function(mage_add_unittest target_name)
   add_dependencies(mage-unittests-build ${target_name})
 
   if(MAGE_TARGET_IS_GPU)
-    set(mage_gpu_loader_args)
-    if(NOT MAGE_GPU_LOADER_ARGS STREQUAL "")
-      separate_arguments(mage_gpu_loader_args NATIVE_COMMAND
-        "${MAGE_GPU_LOADER_ARGS}")
+    set(mage_llvm_gpu_loader_args)
+    if(NOT MAGE_LLVM_GPU_LOADER_ARGS STREQUAL "")
+      separate_arguments(mage_llvm_gpu_loader_args NATIVE_COMMAND
+        "${MAGE_LLVM_GPU_LOADER_ARGS}")
     endif()
 
     add_test(
       NAME ${target_name}
       COMMAND
-        "${MAGE_GPU_LOADER}"
-        ${mage_gpu_loader_args}
+        "${MAGE_LLVM_GPU_LOADER}"
+        ${mage_llvm_gpu_loader_args}
         $<TARGET_FILE:${target_name}>)
   else()
     add_test(

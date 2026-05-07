@@ -8,12 +8,16 @@ include_guard(GLOBAL)
 
 include(CheckCXXCompilerFlag)
 include(ExternalProject)
+include(MageLLVM)
 include(MageRules)
 
-set(MAGE_INTERNAL_LEAF_BUILD OFF CACHE INTERNAL
-  "Whether this configure is a leaf build spawned by the Mage superbuild")
-set(MAGE_INTERNAL_TARGET_TRIPLE "default" CACHE INTERNAL
-  "Target triple for a Mage leaf build")
+if(NOT DEFINED MAGE_INTERNAL_LEAF_BUILD)
+  set(MAGE_INTERNAL_LEAF_BUILD OFF)
+endif()
+
+if(NOT DEFINED MAGE_INTERNAL_TARGET_TRIPLE)
+  set(MAGE_INTERNAL_TARGET_TRIPLE "default")
+endif()
 
 function(mage_validate_gpu_targets)
   set(seen_gpu_targets)
@@ -38,8 +42,7 @@ function(mage_validate_gpu_targets)
   endforeach()
 endfunction()
 
-# Checks whether the current host toolchain can resolve a native architecture
-# for the given GPU target.
+# Checks whether the host toolchain can resolve a native GPU architecture.
 function(mage_check_native_gpu_arch_support gpu_target out_var)
   set(old_try_compile_target_type "${CMAKE_TRY_COMPILE_TARGET_TYPE}")
   set(old_required_flags "${CMAKE_REQUIRED_FLAGS}")
@@ -48,10 +51,14 @@ function(mage_check_native_gpu_arch_support gpu_target out_var)
 
   if(gpu_target STREQUAL "amdgcn-amd-amdhsa")
     set(CMAKE_REQUIRED_FLAGS "--target=amdgcn-amd-amdhsa")
-    check_cxx_compiler_flag("-mcpu=native" HOST_CAN_RESOLVE_GPU_NATIVE_ARCH)
+    check_cxx_compiler_flag("-mcpu=native"
+                            MAGE_CHECK_AMDGPU_MCPU_NATIVE)
+    set(${out_var} "${MAGE_CHECK_AMDGPU_MCPU_NATIVE}" PARENT_SCOPE)
   elseif(gpu_target STREQUAL "nvptx64-nvidia-cuda")
     set(CMAKE_REQUIRED_FLAGS "--target=nvptx64-nvidia-cuda")
-    check_cxx_compiler_flag("-march=native" HOST_CAN_RESOLVE_GPU_NATIVE_ARCH)
+    check_cxx_compiler_flag("-march=native"
+                            MAGE_CHECK_NVPTX_MARCH_NATIVE)
+    set(${out_var} "${MAGE_CHECK_NVPTX_MARCH_NATIVE}" PARENT_SCOPE)
   else()
     message(FATAL_ERROR
       "unsupported GPU target in mage_check_native_gpu_arch_support: "
@@ -60,8 +67,6 @@ function(mage_check_native_gpu_arch_support gpu_target out_var)
 
   set(CMAKE_REQUIRED_FLAGS "${old_required_flags}")
   set(CMAKE_TRY_COMPILE_TARGET_TYPE "${old_try_compile_target_type}")
-
-  set(${out_var} "${HOST_CAN_RESOLVE_GPU_NATIVE_ARCH}" PARENT_SCOPE)
 endfunction()
 
 # Resolves the build context for the current leaf build, including the target
@@ -192,6 +197,10 @@ function(mage_configure_leaf_build)
 
   mage_should_build_unittests(mage_build_unittests)
   if(mage_build_unittests)
+    if(MAGE_TARGET_IS_GPU)
+      mage_configure_llvm_gpu_loader()
+    endif()
+
     add_subdirectory(unittests)
 
     set(mage_ctest_args
@@ -220,24 +229,35 @@ function(mage_add_gpu_subbuild gpu_target)
   set(subbuild_binary_dir "${CMAKE_BINARY_DIR}/${gpu_target}")
   set(config_target "configure-mage-${gpu_target}")
 
+  set(mage_leaf_cmake_args
+    "-DMAGE_INTERNAL_LEAF_BUILD:BOOL=ON"
+    "-DMAGE_INTERNAL_TARGET_TRIPLE:STRING=${gpu_target}"
+    "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
+    "-DCMAKE_CXX_COMPILER:FILEPATH=${CMAKE_CXX_COMPILER}"
+    "-DBUILD_TESTING:BOOL=${BUILD_TESTING}"
+    "-DMAGE_LLVM_ROOT:PATH=${MAGE_LLVM_ROOT}"
+    "-DMAGE_FORCE_ASSERTIONS:BOOL=${MAGE_FORCE_ASSERTIONS}")
+
+  if(gpu_target STREQUAL "amdgcn-amd-amdhsa" AND MAGE_FORCE_AMDGPU_ARCH)
+    list(APPEND mage_leaf_cmake_args
+      "-DMAGE_FORCE_AMDGPU_ARCH:STRING=${MAGE_FORCE_AMDGPU_ARCH}")
+  elseif(gpu_target STREQUAL "nvptx64-nvidia-cuda" AND MAGE_FORCE_NVPTX_ARCH)
+    list(APPEND mage_leaf_cmake_args
+      "-DMAGE_FORCE_NVPTX_ARCH:STRING=${MAGE_FORCE_NVPTX_ARCH}")
+  endif()
+
+  if(BUILD_TESTING)
+    list(APPEND mage_leaf_cmake_args
+      "-DMAGE_GPU_TEST_JOBS:STRING=${MAGE_GPU_TEST_JOBS}")
+  endif()
+
   ExternalProject_Add("${config_target}"
     PREFIX "${CMAKE_BINARY_DIR}/.superbuild/${gpu_target}"
     SOURCE_DIR "${CMAKE_SOURCE_DIR}"
     BINARY_DIR "${subbuild_binary_dir}"
     CMAKE_GENERATOR "${CMAKE_GENERATOR}"
     CMAKE_ARGS
-      -DMAGE_INTERNAL_LEAF_BUILD=ON
-      -DMAGE_INTERNAL_TARGET_TRIPLE=${gpu_target}
-      -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-      -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
-      -DMAGE_FORCE_ASSERTIONS=${MAGE_FORCE_ASSERTIONS}
-      -DMAGE_LLVM_ROOT=${MAGE_LLVM_ROOT}
-      -DLLVM_DIR=${LLVM_DIR}
-      -DMAGE_GPU_TARGETS=
-      -DMAGE_FORCE_AMDGPU_ARCH=${MAGE_FORCE_AMDGPU_ARCH}
-      -DMAGE_FORCE_NVPTX_ARCH=${MAGE_FORCE_NVPTX_ARCH}
-      -DMAGE_GPU_LOADER=${MAGE_GPU_LOADER}
-      -DMAGE_GPU_LOADER_ARGS=${MAGE_GPU_LOADER_ARGS}
+      ${mage_leaf_cmake_args}
     BUILD_COMMAND ""
     INSTALL_COMMAND ""
     TEST_COMMAND ""

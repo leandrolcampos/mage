@@ -11,7 +11,7 @@ with host, AMDGPU, and NVPTX targets enabled:
 
 ```bash
 cmake -S . -B build -G Ninja \
-  -DCMAKE_CXX_COMPILER=clang \
+  -DMAGE_LLVM_ROOT="$LLVM_ROOT" \
   -DMAGE_GPU_TARGETS="amdgcn-amd-amdhsa;nvptx64-nvidia-cuda" \
   -DCMAKE_BUILD_TYPE=Release \
   -DMAGE_FORCE_ASSERTIONS=ON
@@ -112,12 +112,9 @@ ctest --output-on-failure --test-dir build/amdgcn-amd-amdhsa -R "^BarTest$"
 Mage exposes several CMake cache variables as part of its build interface. The
 most relevant ones are:
 
-- `MAGE_FORCE_ASSERTIONS`: forces code assertions in non-Debug builds;
 - `MAGE_LLVM_ROOT`: LLVM install prefix used by Mage;
-- `LLVM_DIR`: path to the LLVM CMake package directory used by Mage;
 - `MAGE_GPU_TARGETS`: semicolon-separated GPU targets to build; this may be empty;
 - `MAGE_FORCE_AMDGPU_ARCH`: forces the AMDGPU architecture used for device code;
 - `MAGE_FORCE_NVPTX_ARCH`: forces the NVPTX architecture used for device code;
-- `MAGE_GPU_LOADER`: program used to run GPU unit tests;
-- `MAGE_GPU_LOADER_ARGS`: arguments appended to the GPU test loader;
 - `MAGE_GPU_TEST_JOBS`: maximum number of GPU unit tests to run in parallel.
+- `MAGE_FORCE_ASSERTIONS`: forces assertions in non-Debug builds;
