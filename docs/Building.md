@@ -116,5 +116,5 @@ most relevant ones are:
 - `MAGE_GPU_TARGETS`: semicolon-separated GPU targets to build; this may be empty;
 - `MAGE_FORCE_AMDGPU_ARCH`: forces the AMDGPU architecture used for device code;
 - `MAGE_FORCE_NVPTX_ARCH`: forces the NVPTX architecture used for device code;
-- `MAGE_GPU_TEST_JOBS`: maximum number of GPU unit tests to run in parallel.
+- `MAGE_GPU_TEST_PARALLELISM`: maximum number of GPU unit tests to run in parallel.
 - `MAGE_FORCE_ASSERTIONS`: forces assertions in non-Debug builds;

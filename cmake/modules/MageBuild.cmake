@@ -208,7 +208,7 @@ function(mage_configure_leaf_build)
       --test-dir "${CMAKE_BINARY_DIR}")
 
     if(MAGE_TARGET_IS_GPU)
-      list(APPEND mage_ctest_args --parallel "${MAGE_GPU_TEST_JOBS}")
+      list(APPEND mage_ctest_args --parallel "${MAGE_GPU_TEST_PARALLELISM}")
     endif()
 
     add_custom_target(check-mage
@@ -248,7 +248,7 @@ function(mage_add_gpu_subbuild gpu_target)
 
   if(BUILD_TESTING)
     list(APPEND mage_leaf_cmake_args
-      "-DMAGE_GPU_TEST_JOBS:STRING=${MAGE_GPU_TEST_JOBS}")
+      "-DMAGE_GPU_TEST_PARALLELISM:STRING=${MAGE_GPU_TEST_PARALLELISM}")
   endif()
 
   ExternalProject_Add("${config_target}"

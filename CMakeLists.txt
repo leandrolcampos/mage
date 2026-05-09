@@ -37,7 +37,7 @@ set(MAGE_FORCE_AMDGPU_ARCH "" CACHE STRING
 set(MAGE_FORCE_NVPTX_ARCH "" CACHE STRING
   "Force building of NVPTX device code with the given architecture")
 
-set(MAGE_GPU_TEST_JOBS "1" CACHE STRING
+set(MAGE_GPU_TEST_PARALLELISM "1" CACHE STRING
   "Maximum number of GPU unit tests to run in parallel")
 
 include(MageBuild)
