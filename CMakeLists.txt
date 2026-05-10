@@ -27,10 +27,10 @@ if(MAGE_FORCE_ASSERTIONS)
   endif()
 endif()
 
-set(MAGE_GPU_TARGETS
+set(MAGE_GPU_TARGET_TRIPLES
   "amdgcn-amd-amdhsa;nvptx64-nvidia-cuda"
   CACHE STRING
-  "Semicolon-separated GPU targets to build. May be empty")
+  "Semicolon-separated GPU target triples to build. May be empty")
 
 set(MAGE_FORCE_AMDGPU_ARCH "" CACHE STRING
   "Force building of AMDGPU device code with the given architecture")

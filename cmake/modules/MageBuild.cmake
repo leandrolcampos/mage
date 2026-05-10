@@ -19,26 +19,45 @@ if(NOT DEFINED MAGE_INTERNAL_TARGET_TRIPLE)
   set(MAGE_INTERNAL_TARGET_TRIPLE "default")
 endif()
 
-function(mage_validate_gpu_targets)
-  set(seen_gpu_targets)
+function(mage_normalize_gpu_target_triples)
+  set(normalized_gpu_target_triples)
 
-  foreach(gpu_target IN LISTS MAGE_GPU_TARGETS)
-    if(gpu_target STREQUAL "")
+  foreach(gpu_target_triple IN LISTS MAGE_GPU_TARGET_TRIPLES)
+    string(STRIP "${gpu_target_triple}" gpu_target_triple)
+    string(TOLOWER "${gpu_target_triple}" gpu_target_triple)
+
+    if(gpu_target_triple STREQUAL "")
       continue()
     endif()
 
-    if(NOT gpu_target STREQUAL "amdgcn-amd-amdhsa" AND
-       NOT gpu_target STREQUAL "nvptx64-nvidia-cuda")
-      message(FATAL_ERROR
-        "unsupported GPU target '${gpu_target}' in MAGE_GPU_TARGETS")
-    endif()
+    list(APPEND normalized_gpu_target_triples "${gpu_target_triple}")
+  endforeach()
 
-    if(gpu_target IN_LIST seen_gpu_targets)
-      message(FATAL_ERROR
-        "duplicate GPU target '${gpu_target}' in MAGE_GPU_TARGETS")
-    endif()
+  list(REMOVE_DUPLICATES normalized_gpu_target_triples)
 
-    list(APPEND seen_gpu_targets "${gpu_target}")
+  set(MAGE_GPU_TARGET_TRIPLES
+    "${normalized_gpu_target_triples}"
+    CACHE STRING
+    "Semicolon-separated GPU target triples to build. May be empty"
+    FORCE)
+endfunction()
+
+function(mage_validate_gpu_target_triples)
+  set(supported_gpu_target_triples
+    amdgcn-amd-amdhsa
+    nvptx64-nvidia-cuda)
+
+  list(JOIN supported_gpu_target_triples
+    ", "
+    supported_gpu_target_triples_str)
+
+  foreach(gpu_target_triple IN LISTS MAGE_GPU_TARGET_TRIPLES)
+    if(NOT gpu_target_triple IN_LIST supported_gpu_target_triples)
+      message(FATAL_ERROR
+        "unsupported GPU target triple '${gpu_target_triple}' in "
+        "MAGE_GPU_TARGET_TRIPLES; expected one of: "
+        "${supported_gpu_target_triples_str}")
+    endif()
   endforeach()
 endfunction()
 
@@ -284,25 +303,21 @@ function(mage_configure_build)
     return()
   endif()
 
-  mage_validate_gpu_targets()
+  mage_normalize_gpu_target_triples()
+  mage_validate_gpu_target_triples()
 
   set(MAGE_INTERNAL_TARGET_TRIPLE "default")
   mage_configure_leaf_build()
 
   set(mage_gpu_build_targets)
 
-  foreach(gpu_target IN LISTS MAGE_GPU_TARGETS)
-    if(gpu_target STREQUAL "")
-      continue()
-    endif()
-
-    mage_add_gpu_subbuild("${gpu_target}")
-    list(APPEND mage_gpu_build_targets "mage-${gpu_target}")
+  foreach(gpu_target_triple IN LISTS MAGE_GPU_TARGET_TRIPLES)
+    mage_add_gpu_subbuild("${gpu_target_triple}")
+    list(APPEND mage_gpu_build_targets "mage-${gpu_target_triple}")
   endforeach()
 
-  # The default root build should construct host artifacts plus every enabled
-  # GPU leaf build. This avoids the surprising behavior where `ninja -C build`
-  # only materializes the leaf directories without building their artifacts.
+  # Make the default root build construct host artifacts and all enabled GPU
+  # leaf builds, not just materialize the leaf build directories.
   add_custom_target(mage-all ALL)
   add_dependencies(mage-all mage)
   if(mage_gpu_build_targets)

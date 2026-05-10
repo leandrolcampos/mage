@@ -6,13 +6,12 @@ Mage is expected to be built with the LLVM-based toolchain described in [Buildin
 
 ## 1. Configure the Build
 
-The following command configures a standard out-of-tree Ninja build for Mage
-with host, AMDGPU, and NVPTX targets enabled:
+The following command configures a standard out-of-tree Ninja build for Mage with host, AMDGPU, and NVPTX targets enabled:
 
 ```bash
 cmake -S . -B build -G Ninja \
   -DMAGE_LLVM_ROOT="$LLVM_ROOT" \
-  -DMAGE_GPU_TARGETS="amdgcn-amd-amdhsa;nvptx64-nvidia-cuda" \
+  -DMAGE_GPU_TARGET_TRIPLES="amdgcn-amd-amdhsa;nvptx64-nvidia-cuda" \
   -DCMAKE_BUILD_TYPE=Release \
   -DMAGE_FORCE_ASSERTIONS=ON
 ```
@@ -57,8 +56,7 @@ Configure only the NVPTX leaf build:
 ninja -C build configure-mage-nvptx64-nvidia-cuda
 ```
 
-These targets are useful when you want to materialize or refresh a GPU leaf
-build directory without immediately building its artifacts.
+These targets are useful when you want to materialize or refresh a GPU leaf build directory without immediately building its artifacts.
 
 ## 4. Run the Unit Tests
 
@@ -82,8 +80,7 @@ ninja -C build check-mage-nvptx64-nvidia-cuda
 
 ## 5. Work Directly Inside a GPU Leaf Build
 
-After a GPU leaf build has been configured, it can also be built and tested
-directly from its own build directory.
+After a GPU leaf build has been configured, it can also be built and tested directly from its own build directory.
 
 For example, for AMDGPU:
 
@@ -100,8 +97,7 @@ To run a single unit test in the host build, use `ctest` with a name filter:
 ctest --output-on-failure --test-dir build -R "^BarTest$"
 ```
 
-To run a single unit test from a GPU leaf build, invoke `ctest` from the
-corresponding leaf build directory instead. For example, for AMDGPU:
+To run a single unit test from a GPU leaf build, invoke `ctest` from the corresponding leaf build directory instead. For example, for AMDGPU:
 
 ```bash
 ctest --output-on-failure --test-dir build/amdgcn-amd-amdhsa -R "^BarTest$"
@@ -109,11 +105,10 @@ ctest --output-on-failure --test-dir build/amdgcn-amd-amdhsa -R "^BarTest$"
 
 ## 7. Relevant CMake Cache Variables
 
-Mage exposes several CMake cache variables as part of its build interface. The
-most relevant ones are:
+Mage exposes several CMake cache variables as part of its build interface. The most relevant ones are:
 
 - `MAGE_LLVM_ROOT`: LLVM install prefix used by Mage;
-- `MAGE_GPU_TARGETS`: semicolon-separated GPU targets to build; this may be empty;
+- `MAGE_GPU_TARGET_TRIPLES`: semicolon-separated GPU target triples to build; this may be empty;
 - `MAGE_FORCE_AMDGPU_ARCH`: forces the AMDGPU architecture used for device code;
 - `MAGE_FORCE_NVPTX_ARCH`: forces the NVPTX architecture used for device code;
 - `MAGE_GPU_TEST_PARALLELISM`: maximum number of GPU unit tests to run in parallel.
