@@ -47,7 +47,7 @@ endfunction()
 function(mage_target_matches_current_leaf out_var)
   mage_get_normalized_target_kinds(requested_target_kinds ${ARGN})
 
-  if(MAGE_TARGET_IS_GPU)
+  if(MAGE_BUILD_IS_GPU)
     if("GPU" IN_LIST requested_target_kinds)
       set(${out_var} TRUE PARENT_SCOPE)
     else()
@@ -87,7 +87,7 @@ function(mage_get_common_compile_options out_var)
     -fno-exceptions
     -fno-rtti)
 
-  if(MAGE_TARGET_IS_GPU)
+  if(MAGE_BUILD_IS_GPU)
     list(APPEND compile_options
       --target=${MAGE_TARGET_TRIPLE}
       -flto)
@@ -103,11 +103,11 @@ function(mage_get_resolved_gpu_arch out_var)
     return()
   endif()
 
-  if(MAGE_TARGET_IS_AMDGPU)
+  if(MAGE_BUILD_IS_AMDGPU)
     message(FATAL_ERROR "No AMDGPU architecture was detected or provided")
   endif()
 
-  if(MAGE_TARGET_IS_NVPTX)
+  if(MAGE_BUILD_IS_NVPTX)
     message(FATAL_ERROR "No NVPTX architecture was detected or provided")
   endif()
 
@@ -119,16 +119,16 @@ endfunction()
 function(mage_get_common_link_options out_var)
   set(link_options)
 
-  if(MAGE_TARGET_IS_GPU)
+  if(MAGE_BUILD_IS_GPU)
     mage_get_resolved_gpu_arch(mage_gpu_arch)
 
     list(APPEND link_options
       --target=${MAGE_TARGET_TRIPLE}
       -flto)
 
-    if(MAGE_TARGET_IS_AMDGPU)
+    if(MAGE_BUILD_IS_AMDGPU)
       list(APPEND link_options -mcpu=${mage_gpu_arch})
-    elseif(MAGE_TARGET_IS_NVPTX)
+    elseif(MAGE_BUILD_IS_NVPTX)
       list(APPEND link_options -march=${mage_gpu_arch})
     else()
       message(FATAL_ERROR
@@ -141,7 +141,7 @@ function(mage_get_common_link_options out_var)
 endfunction()
 
 function(mage_get_common_bitcode_link_options out_var)
-  if(NOT MAGE_TARGET_IS_GPU)
+  if(NOT MAGE_BUILD_IS_GPU)
     set(${out_var} "" PARENT_SCOPE)
     return()
   endif()
@@ -155,9 +155,9 @@ function(mage_get_common_bitcode_link_options out_var)
     -nostdlib
     -Wl,--lto-emit-llvm)
 
-  if(MAGE_TARGET_IS_AMDGPU)
+  if(MAGE_BUILD_IS_AMDGPU)
     list(APPEND link_options -mcpu=${mage_gpu_arch})
-  elseif(MAGE_TARGET_IS_NVPTX)
+  elseif(MAGE_BUILD_IS_NVPTX)
     list(APPEND link_options -march=${mage_gpu_arch})
   else()
     message(FATAL_ERROR
@@ -171,7 +171,7 @@ endfunction()
 # These options are not returned by mage_get_common_link_options because they
 # are specific to GPU executables intended to run under MAGE_LLVM_GPU_LOADER.
 function(mage_get_common_gpu_loader_link_options out_var)
-  if(NOT MAGE_TARGET_IS_GPU)
+  if(NOT MAGE_BUILD_IS_GPU)
     set(${out_var} "" PARENT_SCOPE)
     return()
   endif()
@@ -363,7 +363,7 @@ function(mage_validate_library_dep_target_impl owner_target dep_target)
     mage_get_declared_target_kinds(declared_target_kinds "${dep_target}")
 
     if(declared_target_kinds)
-      if(MAGE_TARGET_IS_GPU)
+      if(MAGE_BUILD_IS_GPU)
         set(current_target_kind "GPU")
       else()
         set(current_target_kind "HOST")
@@ -502,7 +502,7 @@ function(mage_validate_test_dep_targets owner_target)
 
     mage_get_declared_target_kinds(declared_target_kinds "${dep_target}")
     if(declared_target_kinds)
-      if(MAGE_TARGET_IS_GPU)
+      if(MAGE_BUILD_IS_GPU)
         set(current_target_kind "GPU")
       else()
         set(current_target_kind "HOST")
@@ -724,7 +724,7 @@ function(mage_add_library target_name)
 
   mage_register_archive_target("${target_name}")
 
-  if(MAGE_TARGET_IS_GPU AND MAGE_LIBRARY_GENERATE_GPU_BITCODE)
+  if(MAGE_BUILD_IS_GPU AND MAGE_LIBRARY_GENERATE_GPU_BITCODE)
     if(MAGE_LIBRARY_NO_COMMON_BITCODE_LINK_OPTIONS)
       mage_resolve_common_bitcode_link_options(bitcode_link_options
         NO_COMMON_BITCODE_LINK_OPTIONS
@@ -822,7 +822,7 @@ function(mage_add_unittest target_name)
       LINK_OPTIONS ${MAGE_UNITTEST_LINK_OPTIONS})
   endif()
 
-  if(MAGE_TARGET_IS_GPU)
+  if(MAGE_BUILD_IS_GPU)
     if(MAGE_LLVM_GPU_LOADER STREQUAL "")
       message(FATAL_ERROR "GPU unit tests require MAGE_LLVM_GPU_LOADER")
     endif()
@@ -871,7 +871,7 @@ function(mage_add_unittest target_name)
 
   add_dependencies(mage-unittests-build ${target_name})
 
-  if(MAGE_TARGET_IS_GPU)
+  if(MAGE_BUILD_IS_GPU)
     set(mage_llvm_gpu_loader_args)
     if(NOT MAGE_LLVM_GPU_LOADER_ARGS STREQUAL "")
       separate_arguments(mage_llvm_gpu_loader_args NATIVE_COMMAND
