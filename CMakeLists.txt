@@ -41,6 +41,30 @@ set(MAGE_GPU_TEST_PARALLELISM "1" CACHE STRING
   "Maximum number of GPU unit tests to run in parallel")
 
 include(MageBuild)
+include(MageRules)
 
 mage_configure_llvm_toolchain()
-mage_configure_build()
+
+if(NOT MAGE_INTERNAL_GPU_BUILD)
+  mage_normalize_gpu_target_triples()
+  mage_validate_gpu_target_triples()
+  set(MAGE_INTERNAL_TARGET_TRIPLE "default")
+endif()
+
+mage_resolve_current_build_context()
+
+add_subdirectory(lib)
+
+if(BUILD_TESTING)
+  if(MAGE_BUILD_IS_GPU)
+    mage_configure_llvm_gpu_loader()
+  endif()
+
+  add_subdirectory(unittests)
+endif()
+
+if(NOT MAGE_INTERNAL_GPU_BUILD)
+  foreach(gpu_target_triple IN LISTS MAGE_GPU_TARGET_TRIPLES)
+    mage_add_gpu_build("${gpu_target_triple}")
+  endforeach()
+endif()

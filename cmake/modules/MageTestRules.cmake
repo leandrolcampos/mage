@@ -74,7 +74,7 @@ function(add_mage_unittest target_name)
   _mage_get_all_object_files_from_deps(
     all_object_files "${MAGE_UNITTEST_DEPENDS}")
 
-  add_executable(${target_name}
+  add_executable(${target_name} EXCLUDE_FROM_ALL
     ${MAGE_UNITTEST_SRCS}
     ${all_object_files})
 
@@ -103,11 +103,7 @@ function(add_mage_unittest target_name)
   set_target_properties(${target_name} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
 
-  if(NOT TARGET mage-tests-build)
-    add_custom_target(mage-tests-build)
-  endif()
-
-  add_dependencies(mage-tests-build ${target_name})
+  add_dependencies(mage-unittests ${target_name})
 
   if(MAGE_BUILD_IS_GPU)
     separate_arguments(llvm_gpu_loader_args NATIVE_COMMAND
