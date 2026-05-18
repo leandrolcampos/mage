@@ -229,11 +229,11 @@ function(_mage_get_common_link_options out_var)
       --target=${MAGE_TARGET_TRIPLE}
       -flto)
 
-    _mage_get_resolved_gpu_architecture(gpu_arch)
+    _mage_get_resolved_gpu_architecture(gpu_architecture)
     if(MAGE_BUILD_IS_AMDGPU)
-      list(APPEND link_options -mcpu=${gpu_arch})
+      list(APPEND link_options -mcpu=${gpu_architecture})
     elseif(MAGE_BUILD_IS_NVPTX)
-      list(APPEND link_options -march=${gpu_arch})
+      list(APPEND link_options -march=${gpu_architecture})
     else()
       message(FATAL_ERROR
         "unsupported GPU target triple in _mage_get_common_link_options: "
@@ -254,12 +254,12 @@ function(_mage_get_common_bitcode_link_options out_var)
   if(MAGE_BUILD_IS_GPU)
     list(APPEND link_options --target=${MAGE_TARGET_TRIPLE})
 
-    _mage_get_resolved_gpu_architecture(gpu_arch)
+    _mage_get_resolved_gpu_architecture(gpu_architecture)
 
     if(MAGE_BUILD_IS_AMDGPU)
-      list(APPEND link_options -mcpu=${gpu_arch})
+      list(APPEND link_options -mcpu=${gpu_architecture})
     elseif(MAGE_BUILD_IS_NVPTX)
-      list(APPEND link_options -march=${gpu_arch})
+      list(APPEND link_options -march=${gpu_architecture})
     else()
       message(FATAL_ERROR
         "unsupported GPU target triple in "

@@ -57,7 +57,8 @@ function(add_mage_object_library target_name)
 
   _mage_resolve_common_compile_options(compile_options ${compile_option_args})
 
-  add_library(${target_name} OBJECT ${MAGE_OBJECT_LIBRARY_SRCS})
+  add_library(${target_name} OBJECT EXCLUDE_FROM_ALL
+    ${MAGE_OBJECT_LIBRARY_SRCS})
 
   target_include_directories(${target_name}
     PRIVATE
@@ -142,7 +143,7 @@ function(add_mage_library target_name)
   _mage_get_all_object_files_from_deps(
     all_object_files "${MAGE_LIBRARY_DEPENDS}")
 
-  add_library(${target_name} STATIC
+  add_library(${target_name} STATIC EXCLUDE_FROM_ALL
     ${MAGE_LIBRARY_SRCS}
     ${all_object_files})
 
@@ -168,7 +169,7 @@ function(add_mage_library target_name)
     MAGE_DEPS "${MAGE_LIBRARY_DEPENDS}"
     MAGE_LINK_LIBRARIES "${MAGE_LIBRARY_LINK_LIBRARIES}")
 
-  _mage_register_archive_target("${target_name}")
+  add_dependencies(mage-archives ${target_name})
 endfunction()
 
 # Rule to add a Mage library and bundle it in a single LLVM-IR bitcode file.
@@ -245,7 +246,7 @@ function(add_mage_bitcode_library target_name)
   _mage_get_all_object_files_from_deps(
     all_object_files "${MAGE_BITCODE_LIBRARY_DEPENDS}")
 
-  add_executable(${target_name}
+  add_executable(${target_name} EXCLUDE_FROM_ALL
     ${MAGE_BITCODE_LIBRARY_SRCS}
     ${all_object_files})
 
@@ -272,5 +273,5 @@ function(add_mage_bitcode_library target_name)
     MAGE_TARGET_TYPE "${MAGE_BITCODE_LIBRARY_TARGET_TYPE}"
     MAGE_DEPS "${MAGE_BITCODE_LIBRARY_DEPENDS}")
 
-  _mage_register_bitcode_target("${target_name}")
+  add_dependencies(mage-bitcode-libraries ${target_name})
 endfunction()
