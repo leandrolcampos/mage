@@ -120,6 +120,8 @@ most relevant ones are:
 - `MAGE_FORCE_ASSERTIONS`: forces assertions in non-Debug builds;
 - `MAGE_GPU_TARGET_TRIPLES`: semicolon-separated GPU target triples to build;
   this may be empty;
-- `MAGE_FORCE_AMDGPU_ARCH`: forces the AMDGPU architecture used for device code;
-- `MAGE_FORCE_NVPTX_ARCH`: forces the NVPTX architecture used for device code;
+- `MAGE_FORCE_AMDGPU_ARCHITECTURE`: forces the AMDGPU architecture used for
+  device code;
+- `MAGE_FORCE_NVPTX_ARCHITECTURE`: forces the NVPTX architecture used for
+  device code;
 - `MAGE_GPU_TEST_PARALLELISM`: maximum number of GPU unit tests to run in parallel.
