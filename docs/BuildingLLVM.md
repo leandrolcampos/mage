@@ -53,15 +53,15 @@ Append the following paths to your `~/.bashrc` to ensure the build system can lo
 
 ```bash
 echo 'export CUDA_HOME="/usr/local/cuda"' >> ~/.bashrc
-echo 'export LLVM_HOME="$HOME/opt/llvm"' >> ~/.bashrc
-echo 'export PATH="$CUDA_HOME/bin:$LLVM_HOME/bin:$PATH"' >> ~/.bashrc
+echo 'export LLVM_ROOT="$HOME/opt/llvm"' >> ~/.bashrc
+echo 'export PATH="$CUDA_HOME/bin:$LLVM_ROOT/bin:$PATH"' >> ~/.bashrc
 ```
 
 Activate the changes and confirm the variable is set:
 
 ```bash
 source ~/.bashrc
-echo "$LLVM_HOME"
+echo "$LLVM_ROOT"
 ```
 
 ## 5. Install the Basic Toolchain
@@ -96,7 +96,7 @@ cmake -S llvm -B build -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
   -DLLVM_ENABLE_ASSERTIONS=ON \
   -DLLVM_PARALLEL_LINK_JOBS=1 \
-  -DCMAKE_INSTALL_PREFIX="$LLVM_HOME" \
+  -DCMAKE_INSTALL_PREFIX="$LLVM_ROOT" \
   -DRUNTIMES_amdgcn-amd-amdhsa_LLVM_ENABLE_RUNTIMES=libc \
   -DRUNTIMES_nvptx64-nvidia-cuda_LLVM_ENABLE_RUNTIMES=libc \
   -DLLVM_RUNTIME_TARGETS="default;amdgcn-amd-amdhsa;nvptx64-nvidia-cuda"

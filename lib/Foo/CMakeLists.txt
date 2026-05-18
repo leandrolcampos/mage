@@ -1,9 +1,36 @@
-mage_add_library(
-  MageFoo
+add_mage_object_library(
+  MageFooAddOne
   SRCS
-    Bar.cpp
-  TARGET_KINDS
+    AddOne.cpp
+  BUILDS
     HOST
     GPU
-  GENERATE_GPU_BITCODE
+)
+
+add_mage_object_library(
+  MageFooAddTwo
+  SRCS
+    AddTwo.cpp
+  BUILDS
+    HOST
+    GPU
+  DEPENDS
+    MageFooAddOne
+)
+
+add_mage_library(
+  MageFoo
+  BUILDS
+    HOST
+    GPU
+  DEPENDS
+    MageFooAddTwo
+)
+
+add_mage_bitcode_library(
+  MageFooBitcode
+  BUILDS
+    GPU
+  DEPENDS
+    MageFooAddTwo
 )

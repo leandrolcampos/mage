@@ -1,168 +1,143 @@
-# CMake module for locating and validating the LLVM toolchain used by Mage.
-#
-# It treats the LLVM CMake package as the source of truth, derives a default
-# LLVM_DIR from MAGE_LLVM_ROOT when possible, validates minimum tool versions,
-# and discovers llvm-gpu-loader from the selected LLVM installation.
+# Configures the LLVM toolchain used by Mage.
 
 include_guard(GLOBAL)
 
-set(MAGE_MINIMUM_LLVM_VERSION "23.0.0" CACHE INTERNAL
-  "Minimum LLVM version required by Mage")
-
-function(mage_extract_numeric_version out_var raw_version)
-  string(REGEX MATCH "[0-9]+(\\.[0-9]+)(\\.[0-9]+)?"
-    numeric_version "${raw_version}")
-
-  if(numeric_version STREQUAL "")
+function(_mage_validate_and_resolve_llvm_root out_var)
+  if(NOT DEFINED MAGE_LLVM_ROOT OR MAGE_LLVM_ROOT STREQUAL "")
     message(FATAL_ERROR
-      "could not parse a version number from '${raw_version}'")
+      "MAGE_LLVM_ROOT must be set to the LLVM install prefix used by "
+      "Mage, for example: -DMAGE_LLVM_ROOT=/path/to/llvm/install")
   endif()
 
-  set(${out_var} "${numeric_version}" PARENT_SCOPE)
+  if(NOT IS_ABSOLUTE "${MAGE_LLVM_ROOT}")
+    message(FATAL_ERROR
+      "MAGE_LLVM_ROOT must be an absolute path, got '${MAGE_LLVM_ROOT}'")
+  endif()
+
+  if(NOT IS_DIRECTORY "${MAGE_LLVM_ROOT}")
+    message(FATAL_ERROR
+      "MAGE_LLVM_ROOT does not name an existing directory: "
+      "'${MAGE_LLVM_ROOT}'")
+  endif()
+
+  file(REAL_PATH "${MAGE_LLVM_ROOT}" llvm_root)
+  set(${out_var} "${llvm_root}" PARENT_SCOPE)
 endfunction()
 
-function(mage_get_program_version out_var program_path)
-  if(NOT EXISTS "${program_path}")
+function(_mage_get_cxx_compiler_from_llvm_root out_var)
+  _mage_validate_and_resolve_llvm_root(llvm_root)
+
+  set(cxx_compiler "${llvm_root}/bin/clang++")
+
+  if(NOT EXISTS "${cxx_compiler}")
     message(FATAL_ERROR
-      "program does not exist: '${program_path}'")
+      "MAGE_LLVM_ROOT does not contain bin/clang++: '${cxx_compiler}'")
   endif()
 
-  execute_process(
-    COMMAND "${program_path}" --version
-    RESULT_VARIABLE cmd_result
-    OUTPUT_VARIABLE cmd_output
-    ERROR_VARIABLE cmd_error
-    OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-  if(NOT cmd_result EQUAL 0)
-    message(FATAL_ERROR
-      "failed to execute '${program_path} --version'\n"
-      "output: ${cmd_output}\n"
-      "error: ${cmd_error}")
-  endif()
-
-  mage_extract_numeric_version(program_version "${cmd_output}")
-  set(${out_var} "${program_version}" PARENT_SCOPE)
+  file(REAL_PATH "${cxx_compiler}" cxx_compiler_real)
+  set(${out_var} "${cxx_compiler_real}" PARENT_SCOPE)
 endfunction()
 
-function(mage_try_set_llvm_dir_from_root llvm_root)
-  if("${llvm_root}" STREQUAL "")
+function(mage_set_cxx_compiler_from_llvm_root_if_unset)
+  if(CMAKE_CXX_COMPILER_LOADED)
+    message(FATAL_ERROR
+      "mage_set_cxx_compiler_from_llvm_root_if_unset() must be called before "
+      "project() or enable_language(CXX)")
+  endif()
+
+  if(DEFINED CMAKE_CXX_COMPILER AND NOT CMAKE_CXX_COMPILER STREQUAL "")
     return()
   endif()
 
+  _mage_get_cxx_compiler_from_llvm_root(cxx_compiler)
+
+  set(CMAKE_CXX_COMPILER "${cxx_compiler}" CACHE FILEPATH
+    "C++ compiler used by Mage" FORCE)
+endfunction()
+
+function(_mage_validate_cxx_compiler_from_llvm_root)
+  if(NOT CMAKE_CXX_COMPILER_LOADED)
+    message(FATAL_ERROR
+      "_mage_validate_cxx_compiler_from_llvm_root() must be called after "
+      "project() or enable_language(CXX)")
+  endif()
+
+  _mage_get_cxx_compiler_from_llvm_root(expected_cxx_compiler)
+
+  file(REAL_PATH "${CMAKE_CXX_COMPILER}" current_cxx_compiler)
+
+  if(NOT current_cxx_compiler STREQUAL expected_cxx_compiler)
+    message(FATAL_ERROR
+      "CMAKE_CXX_COMPILER must match the C++ compiler derived from "
+      "MAGE_LLVM_ROOT; expected '${expected_cxx_compiler}', got "
+      "'${current_cxx_compiler}'; configure Mage with MAGE_LLVM_ROOT "
+      "only or use a fresh build directory")
+  endif()
+endfunction()
+
+function(_mage_get_llvm_cmake_dir_from_root out_var llvm_root)
   if(EXISTS "${llvm_root}/lib/cmake/llvm/LLVMConfig.cmake")
-    set(LLVM_DIR "${llvm_root}/lib/cmake/llvm" CACHE PATH
-      "Path to the LLVM CMake package directory used by Mage" FORCE)
+    set(${out_var} "${llvm_root}/lib/cmake/llvm" PARENT_SCOPE)
     return()
   endif()
 
   if(EXISTS "${llvm_root}/lib64/cmake/llvm/LLVMConfig.cmake")
-    set(LLVM_DIR "${llvm_root}/lib64/cmake/llvm" CACHE PATH
-      "Path to the LLVM CMake package directory used by Mage" FORCE)
-  endif()
-endfunction()
-
-function(mage_set_default_llvm_root)
-  if(NOT MAGE_LLVM_ROOT STREQUAL "")
+    set(${out_var} "${llvm_root}/lib64/cmake/llvm" PARENT_SCOPE)
     return()
   endif()
 
-  if(DEFINED ENV{LLVM_HOME} AND NOT "$ENV{LLVM_HOME}" STREQUAL "")
-    set(mage_default_llvm_root "$ENV{LLVM_HOME}")
-  else()
-    get_filename_component(mage_clang_bin_dir
-      "${CMAKE_CXX_COMPILER}" DIRECTORY)
-    get_filename_component(mage_default_llvm_root
-      "${mage_clang_bin_dir}" DIRECTORY)
-  endif()
-
-  set(MAGE_LLVM_ROOT "${mage_default_llvm_root}" CACHE PATH
-    "LLVM install prefix used by Mage" FORCE)
+  message(FATAL_ERROR
+    "MAGE_LLVM_ROOT='${MAGE_LLVM_ROOT}' does not contain LLVMConfig.cmake "
+    "under lib/cmake/llvm or lib64/cmake/llvm")
 endfunction()
 
-# Validates the selected Clang compiler, loads the LLVM CMake package, and
-# resolves LLVM-hosted tools used by Mage.
 function(mage_configure_llvm_toolchain)
-  if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    message(FATAL_ERROR
-      "Mage must be built with clang; got '${CMAKE_CXX_COMPILER_ID}'")
-  endif()
+  _mage_validate_cxx_compiler_from_llvm_root()
 
-  mage_extract_numeric_version(mage_clang_version
-    "${CMAKE_CXX_COMPILER_VERSION}")
-  if(mage_clang_version VERSION_LESS MAGE_MINIMUM_LLVM_VERSION)
-    message(FATAL_ERROR
-      "Mage requires clang ${MAGE_MINIMUM_LLVM_VERSION} or newer; got "
-      "${CMAKE_CXX_COMPILER_VERSION}")
-  endif()
+  _mage_validate_and_resolve_llvm_root(llvm_root)
+  _mage_get_llvm_cmake_dir_from_root(llvm_cmake_dir "${llvm_root}")
 
-  set(mage_user_provided_llvm_root OFF)
-  if(NOT MAGE_LLVM_ROOT STREQUAL "")
-    set(mage_user_provided_llvm_root ON)
-  endif()
+  # Use the LLVM CMake package from MAGE_LLVM_ROOT only.
+  set(LLVM_DIR "${llvm_cmake_dir}")
+  find_package(LLVM REQUIRED CONFIG NO_DEFAULT_PATH)
 
-  mage_set_default_llvm_root()
-
-  if(LLVM_DIR STREQUAL "")
-    mage_try_set_llvm_dir_from_root("${MAGE_LLVM_ROOT}")
-  endif()
-
-  if(LLVM_DIR STREQUAL "" AND mage_user_provided_llvm_root)
-    message(FATAL_ERROR
-      "MAGE_LLVM_ROOT='${MAGE_LLVM_ROOT}' does not contain LLVMConfig.cmake "
-      "under lib/cmake/llvm or lib64/cmake/llvm")
-  endif()
-
-  find_package(LLVM REQUIRED CONFIG)
-
-  mage_extract_numeric_version(mage_llvm_version
-    "${LLVM_PACKAGE_VERSION}")
-  if(mage_llvm_version VERSION_LESS MAGE_MINIMUM_LLVM_VERSION)
-    message(FATAL_ERROR
-      "Mage requires LLVM ${MAGE_MINIMUM_LLVM_VERSION} or newer; got "
-      "${LLVM_PACKAGE_VERSION}")
-  endif()
-
-  set(MAGE_LLVM_VERSION "${mage_llvm_version}" CACHE INTERNAL
+  set(MAGE_LLVM_CMAKE_DIR "${llvm_cmake_dir}" CACHE INTERNAL
+    "LLVM CMake package directory used by Mage" FORCE)
+  set(MAGE_LLVM_VERSION "${LLVM_PACKAGE_VERSION}" CACHE INTERNAL
     "LLVM version used by Mage" FORCE)
   set(MAGE_LLVM_TOOLS_DIR "${LLVM_TOOLS_BINARY_DIR}" CACHE INTERNAL
-    "LLVM tools directory used by Mage" FORCE)
+    "LLVM tools directory reported by LLVMConfig.cmake" FORCE)
   set(MAGE_LLVM_LIBRARY_DIR "${LLVM_LIBRARY_DIR}" CACHE INTERNAL
-    "LLVM library directory used by Mage" FORCE)
-  set(MAGE_LLVM_CMAKE_DIR "${LLVM_CMAKE_DIR}" CACHE INTERNAL
-    "LLVM CMake package directory used by Mage" FORCE)
-
-  if(MAGE_GPU_LOADER STREQUAL "")
-    find_program(mage_default_gpu_loader
-      NAMES llvm-gpu-loader
-      HINTS "${LLVM_TOOLS_BINARY_DIR}")
-
-    if(mage_default_gpu_loader)
-      set(MAGE_GPU_LOADER "${mage_default_gpu_loader}" CACHE FILEPATH
-        "Program used to run GPU unit tests. Defaults to llvm-gpu-loader"
-        FORCE)
-    endif()
-
-    unset(mage_default_gpu_loader CACHE)
-    unset(mage_default_gpu_loader)
-  endif()
-
-  if(MAGE_GPU_LOADER STREQUAL "" AND MAGE_GPU_TARGETS)
-    message(STATUS
-      "no GPU test loader was found automatically; GPU unit-test execution "
-      "may require MAGE_GPU_LOADER to be set manually")
-  endif()
+    "LLVM library directory reported by LLVMConfig.cmake" FORCE)
 
   message(STATUS
-    "Found LLVM ${LLVM_PACKAGE_VERSION} in '${LLVM_DIR}'")
+    "Found LLVM: ${llvm_root} (found version \"${MAGE_LLVM_VERSION}\")")
 endfunction()
 
-# Applies Mage's global assertion policy.
-function(mage_configure_assertions)
-  if(MAGE_ENABLE_ASSERTIONS)
-    add_compile_options(-UNDEBUG)
-    return()
+function(mage_configure_llvm_gpu_loader)
+  if((NOT DEFINED MAGE_LLVM_TOOLS_DIR) OR (MAGE_LLVM_TOOLS_DIR STREQUAL ""))
+    message(FATAL_ERROR
+      "mage_configure_llvm_gpu_loader() requires "
+      "mage_configure_llvm_toolchain() to be called first")
   endif()
 
-  add_compile_definitions(NDEBUG)
+  # Use llvm-gpu-loader from MAGE_LLVM_ROOT only.
+  find_program(llvm_gpu_loader
+    NAMES llvm-gpu-loader
+    PATHS "${MAGE_LLVM_TOOLS_DIR}"
+    NO_DEFAULT_PATH)
+
+  if(NOT llvm_gpu_loader)
+    message(FATAL_ERROR
+      "llvm-gpu-loader was not found in '${MAGE_LLVM_TOOLS_DIR}'; make sure "
+      "MAGE_LLVM_ROOT points to an LLVM installation with llvm-gpu-loader")
+  endif()
+
+  set(MAGE_LLVM_GPU_LOADER "${llvm_gpu_loader}" CACHE INTERNAL
+    "llvm-gpu-loader used by Mage" FORCE)
+
+  unset(llvm_gpu_loader CACHE)
+
+  set(MAGE_LLVM_GPU_LOADER_ARGS "--blocks 1 --threads 1" CACHE INTERNAL
+    "Arguments passed to llvm-gpu-loader when running GPU tests" FORCE)
 endfunction()

@@ -1,3 +1,3 @@
-add_custom_target(mage-unittests-build)
+add_custom_target(mage-tests-build)
 
 add_subdirectory(Foo)
