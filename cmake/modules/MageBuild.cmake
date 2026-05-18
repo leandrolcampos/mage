@@ -4,7 +4,6 @@ include_guard(GLOBAL)
 
 include(CheckCXXCompilerFlag)
 include(ExternalProject)
-include(MageLLVM)
 
 if(NOT DEFINED MAGE_INTERNAL_GPU_BUILD)
   set(MAGE_INTERNAL_GPU_BUILD OFF)
