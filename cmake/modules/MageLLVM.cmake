@@ -109,6 +109,8 @@ function(mage_configure_llvm_toolchain)
     "LLVM tools directory reported by LLVMConfig.cmake" FORCE)
   set(MAGE_LLVM_LIBRARY_DIR "${LLVM_LIBRARY_DIR}" CACHE INTERNAL
     "LLVM library directory reported by LLVMConfig.cmake" FORCE)
+  set(MAGE_LLVM_HOST_TRIPLE "${LLVM_HOST_TRIPLE}" CACHE INTERNAL
+    "LLVM host target triple reported by LLVMConfig.cmake" FORCE)
 
   message(STATUS
     "Found LLVM: ${llvm_root} (found version \"${MAGE_LLVM_VERSION}\")")
@@ -118,7 +120,7 @@ function(mage_configure_llvm_gpu_loader)
   if((NOT DEFINED MAGE_LLVM_TOOLS_DIR) OR (MAGE_LLVM_TOOLS_DIR STREQUAL ""))
     message(FATAL_ERROR
       "mage_configure_llvm_gpu_loader() requires "
-      "mage_configure_llvm_toolchain() to be called first")
+      "MAGE_LLVM_TOOLS_DIR to be set")
   endif()
 
   # Use llvm-gpu-loader from MAGE_LLVM_ROOT only.
@@ -140,4 +142,31 @@ function(mage_configure_llvm_gpu_loader)
 
   set(MAGE_LLVM_GPU_LOADER_ARGS "--blocks 1 --threads 1" CACHE INTERNAL
     "Arguments passed to llvm-gpu-loader when running GPU tests" FORCE)
+endfunction()
+
+function(mage_configure_llvm_libc)
+  if((NOT DEFINED MAGE_LLVM_LIBRARY_DIR) OR
+     (MAGE_LLVM_LIBRARY_DIR STREQUAL ""))
+    message(FATAL_ERROR
+      "mage_configure_llvm_libc() requires MAGE_LLVM_LIBRARY_DIR to be set")
+  endif()
+
+  set(host_libc_dir "${MAGE_LLVM_LIBRARY_DIR}/${MAGE_LLVM_HOST_TRIPLE}")
+
+  # Use libllvmlibc.a from MAGE_LLVM_ROOT only.
+  find_library(llvm_libc
+    NAMES libllvmlibc.a
+    PATHS "${host_libc_dir}"
+    NO_DEFAULT_PATH)
+
+  if(NOT llvm_libc)
+    message(FATAL_ERROR
+      "libllvmlibc.a was not found in '${host_libc_dir}'; make sure "
+      "MAGE_LLVM_ROOT points to an LLVM installation with LLVM libc")
+  endif()
+
+  set(MAGE_LLVM_LIBC "${llvm_libc}" CACHE INTERNAL
+    "LLVM libc used by Mage" FORCE)
+
+  unset(llvm_libc CACHE)
 endfunction()

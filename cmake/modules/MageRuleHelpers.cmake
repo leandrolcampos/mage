@@ -127,6 +127,18 @@ endfunction()
 # ------------------------------------------------------------------------------
 
 function(_mage_get_common_compile_options out_var)
+  cmake_parse_arguments(COMMON_COMPILE_OPTIONS
+    "IS_TEST"
+    ""
+    ""
+    ${ARGN})
+
+  if(COMMON_COMPILE_OPTIONS_UNPARSED_ARGUMENTS)
+    message(FATAL_ERROR
+      "_mage_get_common_compile_options received unexpected arguments: "
+      "${COMMON_COMPILE_OPTIONS_UNPARSED_ARGUMENTS}")
+  endif()
+
   set(compile_options
     -Wall
     -Wextra
@@ -141,12 +153,15 @@ function(_mage_get_common_compile_options out_var)
     -Wnewline-eof
     -Wnonportable-system-include-path
     -Wthread-safety
-    -Wglobal-constructors
     -fno-exceptions
     -fno-lax-vector-conversions
     -fno-unwind-tables
     -fno-asynchronous-unwind-tables
     -fno-rtti)
+
+  if(NOT COMMON_COMPILE_OPTIONS_IS_TEST)
+    list(APPEND compile_options -Wglobal-constructors)
+  endif()
 
   if(MAGE_BUILD_IS_GPU)
     list(APPEND compile_options
@@ -175,7 +190,7 @@ endfunction()
 
 function(_mage_resolve_common_compile_options out_var)
   cmake_parse_arguments(OPTION_RESOLUTION
-    "NO_COMMON_COMPILE_OPTIONS"
+    "NO_COMMON_COMPILE_OPTIONS;IS_TEST"
     ""
     "COMPILE_OPTIONS"
     ${ARGN})
@@ -188,7 +203,13 @@ function(_mage_resolve_common_compile_options out_var)
 
   set(compile_options)
   if(NOT OPTION_RESOLUTION_NO_COMMON_COMPILE_OPTIONS)
-    _mage_get_common_compile_options(common_compile_options)
+    set(common_compile_option_args)
+    if(OPTION_RESOLUTION_IS_TEST)
+      list(APPEND common_compile_option_args IS_TEST)
+    endif()
+
+    _mage_get_common_compile_options(
+      common_compile_options ${common_compile_option_args})
     list(APPEND compile_options ${common_compile_options})
   endif()
 
@@ -222,12 +243,28 @@ function(_mage_get_resolved_gpu_architecture out_var)
 endfunction()
 
 function(_mage_get_common_link_options out_var)
+  cmake_parse_arguments(COMMON_LINK_OPTIONS
+    "IS_TEST"
+    ""
+    ""
+    ${ARGN})
+
+  if(COMMON_LINK_OPTIONS_UNPARSED_ARGUMENTS)
+    message(FATAL_ERROR
+      "_mage_get_common_link_options received unexpected arguments: "
+      "${COMMON_LINK_OPTIONS_UNPARSED_ARGUMENTS}")
+  endif()
+
   set(link_options)
 
   if(MAGE_BUILD_IS_GPU)
     list(APPEND link_options
       --target=${MAGE_TARGET_TRIPLE}
       -flto)
+
+    if(COMMON_LINK_OPTIONS_IS_TEST)
+      list(APPEND link_options -stdlib -startfiles)
+    endif()
 
     _mage_get_resolved_gpu_architecture(gpu_architecture)
     if(MAGE_BUILD_IS_AMDGPU)
@@ -272,7 +309,7 @@ endfunction()
 
 function(_mage_resolve_common_link_options out_var)
   cmake_parse_arguments(OPTION_RESOLUTION
-    "NO_COMMON_LINK_OPTIONS"
+    "NO_COMMON_LINK_OPTIONS;IS_TEST"
     ""
     "LINK_OPTIONS"
     ${ARGN})
@@ -285,7 +322,13 @@ function(_mage_resolve_common_link_options out_var)
 
   set(link_options)
   if(NOT OPTION_RESOLUTION_NO_COMMON_LINK_OPTIONS)
-    _mage_get_common_link_options(common_link_options)
+    set(common_link_option_args)
+    if(OPTION_RESOLUTION_IS_TEST)
+      list(APPEND common_link_option_args IS_TEST)
+    endif()
+
+    _mage_get_common_link_options(
+      common_link_options ${common_link_option_args})
     list(APPEND link_options ${common_link_options})
   endif()
   list(APPEND link_options ${OPTION_RESOLUTION_LINK_OPTIONS})

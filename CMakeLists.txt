@@ -58,6 +58,8 @@ add_subdirectory(lib)
 if(BUILD_TESTING)
   if(MAGE_BUILD_IS_GPU)
     mage_configure_llvm_gpu_loader()
+  else()
+    mage_configure_llvm_libc()
   endif()
 
   add_subdirectory(unittests)
