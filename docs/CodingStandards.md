@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This document describes the coding standards used by the Mage project.
+This document describes the coding standards used by the Mage project. It is adapted from the [LLVM Coding Standards](https://llvm.org/docs/CodingStandards.html), which are licensed under the Apache License v2.0 with LLVM Exceptions.
 
 Mage follows standard C++17 and adopts a style inspired by the LLVM Coding Standards, adapted to the current needs of this repository. Although no coding standard should be regarded as an absolute requirement to be followed in all instances, coding standards are particularly important for large-scale code bases that follow a library-based design.
 

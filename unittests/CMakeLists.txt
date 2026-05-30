@@ -17,4 +17,5 @@ add_custom_target(check-mage
     mage-unittests
   USES_TERMINAL)
 
-add_subdirectory(Foo)
+add_subdirectory(UnitTest)
+add_subdirectory(mage)

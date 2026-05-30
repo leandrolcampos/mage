@@ -2,6 +2,75 @@
 
 include_guard(GLOBAL)
 
+# Rule to add a Mage unit-test framework library.
+#
+# Unit-test framework libraries provide support code for Mage unit tests and
+# are not part of the Mage library artifacts.
+#
+# Usage:
+#   add_mage_unittest_framework_library(
+#     <target name>
+#     SRCS <list of source files>
+#     [BUILDS <HOST|GPU>...]
+#     [COMPILE_OPTIONS <list of compile options>]
+#     [LINK_LIBRARIES <list of linking libraries for this target>]
+#     [NO_COMMON_COMPILE_OPTIONS]
+#   )
+function(add_mage_unittest_framework_library name)
+  cmake_parse_arguments(MAGE_UNITTEST_FRAMEWORK
+    "NO_COMMON_COMPILE_OPTIONS"
+    ""
+    "SRCS;BUILDS;COMPILE_OPTIONS;LINK_LIBRARIES"
+    ${ARGN})
+
+  if(MAGE_UNITTEST_FRAMEWORK_UNPARSED_ARGUMENTS)
+    message(FATAL_ERROR
+      "add_mage_unittest_framework_library(${name}) received unexpected "
+      "arguments: ${MAGE_UNITTEST_FRAMEWORK_UNPARSED_ARGUMENTS}")
+  endif()
+
+  if(NOT MAGE_UNITTEST_FRAMEWORK_SRCS)
+    message(FATAL_ERROR
+      "add_mage_unittest_framework_library(${name}) requires SRCS")
+  endif()
+
+  _mage_builds_include_current_build(
+    framework_enabled "${MAGE_UNITTEST_FRAMEWORK_BUILDS}")
+  if(NOT framework_enabled)
+    return()
+  endif()
+
+  set(compile_option_args
+    IS_TEST
+    COMPILE_OPTIONS ${MAGE_UNITTEST_FRAMEWORK_COMPILE_OPTIONS})
+  if(MAGE_UNITTEST_FRAMEWORK_NO_COMMON_COMPILE_OPTIONS)
+    list(APPEND compile_option_args NO_COMMON_COMPILE_OPTIONS)
+  endif()
+
+  _mage_resolve_common_compile_options(compile_options ${compile_option_args})
+
+  add_library(${name} STATIC EXCLUDE_FROM_ALL
+    ${MAGE_UNITTEST_FRAMEWORK_SRCS})
+
+  target_include_directories(${name}
+    PUBLIC
+      "${PROJECT_SOURCE_DIR}/unittests"
+    PRIVATE
+      "${MAGE_SOURCE_INCLUDE_DIR}")
+
+  if(compile_options)
+    target_compile_options(${name}
+      PRIVATE
+        ${compile_options})
+  endif()
+
+  if(MAGE_UNITTEST_FRAMEWORK_LINK_LIBRARIES)
+    target_link_libraries(${name}
+      PRIVATE
+        ${MAGE_UNITTEST_FRAMEWORK_LINK_LIBRARIES})
+  endif()
+endfunction()
+
 # Rule to add a Mage unit test.
 #
 # Usage:
@@ -52,6 +121,7 @@ function(add_mage_unittest target_name)
     "${MAGE_UNITTEST_DEPENDS}")
 
   set(compile_option_args
+    IS_TEST
     COMPILE_OPTIONS ${MAGE_UNITTEST_COMPILE_OPTIONS})
   if(MAGE_UNITTEST_NO_COMMON_COMPILE_OPTIONS)
     list(APPEND compile_option_args NO_COMMON_COMPILE_OPTIONS)
@@ -60,6 +130,7 @@ function(add_mage_unittest target_name)
   _mage_resolve_common_compile_options(compile_options ${compile_option_args})
 
   set(link_option_args
+    IS_TEST
     LINK_OPTIONS ${MAGE_UNITTEST_LINK_OPTIONS})
   if(MAGE_UNITTEST_NO_COMMON_LINK_OPTIONS)
     list(APPEND link_option_args NO_COMMON_LINK_OPTIONS)
@@ -67,8 +138,14 @@ function(add_mage_unittest target_name)
 
   _mage_resolve_common_link_options(link_options ${link_option_args})
 
-  if(MAGE_BUILD_IS_GPU AND NOT MAGE_UNITTEST_NO_COMMON_LINK_OPTIONS)
-    list(APPEND link_options -stdlib -startfiles)
+  set(unittest_link_libraries ${MAGE_UNITTEST_LINK_LIBRARIES})
+
+  if(TARGET MageUnitTest)
+    list(APPEND unittest_link_libraries MageUnitTest)
+  endif()
+
+  if(NOT MAGE_BUILD_IS_GPU)
+    list(APPEND unittest_link_libraries "${MAGE_LLVM_LIBC}")
   endif()
 
   _mage_get_all_object_files_from_deps(
@@ -94,10 +171,10 @@ function(add_mage_unittest target_name)
         ${link_options})
   endif()
 
-  if(MAGE_UNITTEST_LINK_LIBRARIES)
+  if(unittest_link_libraries)
     target_link_libraries(${target_name}
       PRIVATE
-        ${MAGE_UNITTEST_LINK_LIBRARIES})
+        ${unittest_link_libraries})
   endif()
 
   set_target_properties(${target_name} PROPERTIES
