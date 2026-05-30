@@ -81,8 +81,8 @@ TestLogger &TestLogger::operator<<(unsigned long long N) {
   return *this;
 }
 
-TestLogger &TestLogger::operator<<(const void *Addr) {
-  fprintf(stderr, "0x%" PRIxPTR, reinterpret_cast<uintptr_t>(Addr));
+TestLogger &TestLogger::operator<<(const void *Ptr) {
+  fprintf(stderr, "0x%" PRIxPTR, reinterpret_cast<uintptr_t>(Ptr));
   return *this;
 }
 

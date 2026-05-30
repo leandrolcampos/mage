@@ -220,27 +220,14 @@ private:
   }                                                                            \
   void SuiteClass##_##TestName::run()
 
+//===----------------------------------------------------------------------===//
+// Binary comparison checks
+//===----------------------------------------------------------------------===//
+
 #define MAGE_TEST_BINOP_(Cond, LHS, RHS, OnFailure)                            \
   do {                                                                         \
     if (!this->test<::mage::testing::TestCond::Cond>((LHS), (RHS), #LHS, #RHS, \
                                                      MAGE_TEST_LOC_())) {      \
-      OnFailure;                                                               \
-    }                                                                          \
-  } while (false)
-
-#define MAGE_TEST_BOOL_(Expected, Val, OnFailure)                              \
-  do {                                                                         \
-    if (!this->test<::mage::testing::TestCond::EQ>(static_cast<bool>(Val),     \
-                                                   Expected, #Val, #Expected,  \
-                                                   MAGE_TEST_LOC_())) {        \
-      OnFailure;                                                               \
-    }                                                                          \
-  } while (false)
-
-#define MAGE_TEST_CSTRING_(Cond, LHS, RHS, OnFailure)                          \
-  do {                                                                         \
-    if (!this->test<::mage::testing::TestCond::Cond, true>(                    \
-            (LHS), (RHS), #LHS, #RHS, MAGE_TEST_LOC_())) {                     \
       OnFailure;                                                               \
     }                                                                          \
   } while (false)
@@ -263,11 +250,36 @@ private:
 #define MAGE_EXPECT_GE(LHS, RHS) MAGE_TEST_BINOP_(GE, LHS, RHS, )
 #define MAGE_ASSERT_GE(LHS, RHS) MAGE_TEST_BINOP_(GE, LHS, RHS, return)
 
+//===----------------------------------------------------------------------===//
+// Boolean checks
+//===----------------------------------------------------------------------===//
+
+#define MAGE_TEST_BOOL_(Expected, Val, OnFailure)                              \
+  do {                                                                         \
+    if (!this->test<::mage::testing::TestCond::EQ>(static_cast<bool>(Val),     \
+                                                   Expected, #Val, #Expected,  \
+                                                   MAGE_TEST_LOC_())) {        \
+      OnFailure;                                                               \
+    }                                                                          \
+  } while (false)
+
 #define MAGE_EXPECT_TRUE(Val) MAGE_TEST_BOOL_(true, Val, )
 #define MAGE_ASSERT_TRUE(Val) MAGE_TEST_BOOL_(true, Val, return)
 
 #define MAGE_EXPECT_FALSE(Val) MAGE_TEST_BOOL_(false, Val, )
 #define MAGE_ASSERT_FALSE(Val) MAGE_TEST_BOOL_(false, Val, return)
+
+//===----------------------------------------------------------------------===//
+// C string checks
+//===----------------------------------------------------------------------===//
+
+#define MAGE_TEST_CSTRING_(Cond, LHS, RHS, OnFailure)                          \
+  do {                                                                         \
+    if (!this->test<::mage::testing::TestCond::Cond, true>(                    \
+            (LHS), (RHS), #LHS, #RHS, MAGE_TEST_LOC_())) {                     \
+      OnFailure;                                                               \
+    }                                                                          \
+  } while (false)
 
 #define MAGE_EXPECT_STREQ(LHS, RHS) MAGE_TEST_CSTRING_(EQ, LHS, RHS, )
 #define MAGE_ASSERT_STREQ(LHS, RHS) MAGE_TEST_CSTRING_(EQ, LHS, RHS, return)
