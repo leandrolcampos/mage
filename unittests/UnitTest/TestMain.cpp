@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file defines the entry point for Mage unit-test executables.
+/// Defines the entry point for Mage unit-test executables.
 ///
 //===----------------------------------------------------------------------===//
 

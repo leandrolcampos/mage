@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file provides C++ runtime entry points required by Mage unit tests.
+/// Provides C++ runtime entry points required by Mage unit tests.
 ///
 //===----------------------------------------------------------------------===//
 

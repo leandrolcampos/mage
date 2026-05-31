@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file declares logging support for Mage unit tests.
+/// Declares logging support for Mage unit tests.
 ///
 //===----------------------------------------------------------------------===//
 
