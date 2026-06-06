@@ -263,7 +263,7 @@ function(_mage_get_common_link_options out_var)
       -flto)
 
     if(COMMON_LINK_OPTIONS_IS_TEST)
-      list(APPEND link_options -stdlib -startfiles)
+      list(APPEND link_options -startfiles)
     endif()
 
     _mage_get_resolved_gpu_architecture(gpu_architecture)

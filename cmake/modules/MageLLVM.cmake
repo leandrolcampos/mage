@@ -145,13 +145,38 @@ function(mage_configure_llvm_gpu_loader)
 endfunction()
 
 function(mage_configure_llvm_libc)
+  if(TARGET MageLLVMLibC)
+    return()
+  endif()
+
+  if(NOT DEFINED MAGE_BUILD_IS_GPU)
+    message(FATAL_ERROR
+      "mage_configure_llvm_libc() requires MAGE_BUILD_IS_GPU to be set")
+  endif()
+
+  add_library(MageLLVMLibC INTERFACE)
+  add_library(Mage::LLVMLibC ALIAS MageLLVMLibC)
+
+  if(MAGE_BUILD_IS_GPU)
+    target_link_options(MageLLVMLibC INTERFACE
+      -stdlib)
+    return()
+  endif()
+
   if((NOT DEFINED MAGE_LLVM_LIBRARY_DIR) OR
      (MAGE_LLVM_LIBRARY_DIR STREQUAL ""))
     message(FATAL_ERROR
       "mage_configure_llvm_libc() requires MAGE_LLVM_LIBRARY_DIR to be set")
   endif()
 
-  set(host_libc_dir "${MAGE_LLVM_LIBRARY_DIR}/${MAGE_LLVM_HOST_TRIPLE}")
+  if((NOT DEFINED MAGE_LLVM_HOST_TRIPLE) OR
+     (MAGE_LLVM_HOST_TRIPLE STREQUAL ""))
+    message(FATAL_ERROR
+      "mage_configure_llvm_libc() requires MAGE_LLVM_HOST_TRIPLE to be set")
+  endif()
+
+  set(host_libc_dir
+    "${MAGE_LLVM_LIBRARY_DIR}/${MAGE_LLVM_HOST_TRIPLE}")
 
   # Use libllvmlibc.a from MAGE_LLVM_ROOT only.
   find_library(llvm_libc
@@ -165,8 +190,8 @@ function(mage_configure_llvm_libc)
       "MAGE_LLVM_ROOT points to an LLVM installation with LLVM libc")
   endif()
 
-  set(MAGE_LLVM_LIBC "${llvm_libc}" CACHE INTERNAL
-    "LLVM libc used by Mage" FORCE)
+  target_link_libraries(MageLLVMLibC INTERFACE
+    "${llvm_libc}")
 
   unset(llvm_libc CACHE)
 endfunction()

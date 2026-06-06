@@ -144,9 +144,12 @@ function(add_mage_unittest target_name)
     list(APPEND unittest_link_libraries MageUnitTest)
   endif()
 
-  if(NOT MAGE_BUILD_IS_GPU)
-    list(APPEND unittest_link_libraries "${MAGE_LLVM_LIBC}")
+  if(NOT TARGET Mage::LLVMLibC)
+    message(FATAL_ERROR
+      "add_mage_unittest(${target_name}) requires Mage::LLVMLibC")
   endif()
+
+  list(APPEND unittest_link_libraries Mage::LLVMLibC)
 
   _mage_get_all_object_files_from_deps(
     all_object_files "${MAGE_UNITTEST_DEPENDS}")

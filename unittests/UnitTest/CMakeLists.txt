@@ -5,4 +5,7 @@ add_mage_unittest_framework_library(
     TestLogger.cpp
     TestMain.cpp
     TestUtils.cpp
+  BUILDS
+    HOST
+    GPU
 )
