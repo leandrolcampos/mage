@@ -7,11 +7,11 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// Tests Mage numeric type traits.
+/// Tests type traits for numeric code.
 ///
 //===----------------------------------------------------------------------===//
 
-#include "mage/MathExtras/type_traits.hpp"
+#include "mage/MathExtras/TypeTraits.hpp"
 #include "UnitTest/Test.hpp"
 
 #include <stdint.h>
@@ -32,6 +32,16 @@ static_assert(__is_same(type_identity_t<int>, int),
 static_assert(__is_same(type_identity_t<const volatile int>,
                         const volatile int),
               "type_identity_t preserves const volatile int");
+
+static_assert(is_same_v<int, int>, "is_same_v detects identical types");
+static_assert(!is_same_v<int, unsigned int>,
+              "is_same_v rejects different types");
+static_assert(!is_same_v<const int, int>,
+              "is_same_v preserves const qualification");
+static_assert(!is_same_v<volatile int, int>,
+              "is_same_v preserves volatile qualification");
+static_assert(is_same_v<const volatile int, const volatile int>,
+              "is_same_v detects identical cv-qualified types");
 
 //===----------------------------------------------------------------------===//
 // cv-qualifier transformations
@@ -186,6 +196,32 @@ static_assert(is_unsigned_v<const unsigned int>,
 
 static_assert(!is_unsigned_v<UnsupportedType>,
               "unsupported type is not unsigned");
+
+//===----------------------------------------------------------------------===//
+// Type properties
+//===----------------------------------------------------------------------===//
+
+namespace {
+
+struct TriviallyCopyable {
+  int Value;
+};
+
+struct NonTriviallyCopyable {
+  NonTriviallyCopyable(const NonTriviallyCopyable &) {}
+
+  int Value;
+};
+
+} // namespace
+
+static_assert(is_trivially_copyable_v<int>);
+static_assert(is_trivially_copyable_v<const int>);
+static_assert(is_trivially_copyable_v<TriviallyCopyable>);
+static_assert(!is_trivially_copyable_v<NonTriviallyCopyable>);
+
+static_assert(is_trivially_copyable<int>::value ==
+              is_trivially_copyable_v<int>);
 
 //===----------------------------------------------------------------------===//
 // Type transformations

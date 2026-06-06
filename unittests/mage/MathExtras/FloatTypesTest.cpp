@@ -7,13 +7,17 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// Tests Mage floating-point type aliases.
+/// Tests floating-point type aliases.
 ///
 //===----------------------------------------------------------------------===//
 
 #include "mage/MathExtras/FloatTypes.hpp"
 #include "UnitTest/Test.hpp"
 
-static_assert(__is_same(mage::float16, _Float16), "float16 aliases _Float16");
+#include "mage/MathExtras/TypeTraits.hpp"
+
+using namespace mage::numeric;
+
+static_assert(is_same_v<mage::float16, _Float16>, "float16 aliases _Float16");
 
 MAGE_TEST(FloatTypesTest, CompileTimeChecks) {}

@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// Provides type traits for Mage numeric code.
+/// Provides type traits for numeric code.
 ///
 /// These traits intentionally avoid depending on the C++ standard library so
 /// they can be used by code that may also be compiled for device targets.
@@ -18,8 +18,8 @@
 
 // NOLINTBEGIN(readability-identifier-naming)
 
-#ifndef MAGE_MATHEXTRAS_TYPE_TRAITS_HPP
-#define MAGE_MATHEXTRAS_TYPE_TRAITS_HPP
+#ifndef MAGE_MATHEXTRAS_TYPETRAITS_HPP
+#define MAGE_MATHEXTRAS_TYPETRAITS_HPP
 
 #include "mage/MathExtras/FloatTypes.hpp"
 
@@ -56,6 +56,13 @@ template <typename T> struct type_identity {
 };
 
 template <typename T> using type_identity_t = typename type_identity<T>::type;
+
+template <typename T, typename U> struct is_same : false_type {};
+
+template <typename T> struct is_same<T, T> : true_type {};
+
+template <typename T, typename U>
+inline constexpr bool is_same_v = is_same<T, U>::value;
 
 //===----------------------------------------------------------------------===//
 // cv-qualifier transformations
@@ -184,6 +191,17 @@ template <typename T>
 inline constexpr bool is_unsigned_v = is_unsigned<T>::value;
 
 //===----------------------------------------------------------------------===//
+// Type properties
+//===----------------------------------------------------------------------===//
+
+template <typename T>
+struct is_trivially_copyable
+    : detail::bool_constant<__is_trivially_copyable(T)> {};
+
+template <typename T>
+inline constexpr bool is_trivially_copyable_v = is_trivially_copyable<T>::value;
+
+//===----------------------------------------------------------------------===//
 // Type transformations
 //===----------------------------------------------------------------------===//
 
@@ -297,6 +315,6 @@ template <typename T> using storage_type_t = typename storage_type<T>::type;
 } // namespace numeric
 } // namespace mage
 
-#endif // MAGE_MATHEXTRAS_TYPE_TRAITS_HPP
+#endif // MAGE_MATHEXTRAS_TYPETRAITS_HPP
 
 // NOLINTEND(readability-identifier-naming)
