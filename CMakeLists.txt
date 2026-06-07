@@ -41,6 +41,7 @@ set(MAGE_GPU_TEST_PARALLELISM "1" CACHE STRING
   "Maximum number of GPU unit tests to run in parallel")
 
 include(MageBuild)
+include(MageMPFR)
 include(MageRules)
 
 mage_configure_llvm_toolchain()
@@ -52,9 +53,13 @@ if(NOT MAGE_INTERNAL_GPU_BUILD)
 endif()
 
 mage_resolve_current_build_context()
-mage_configure_llvm_libc()
+mage_configure_mpfr()
 
 add_subdirectory(lib)
+
+if(NOT MAGE_BUILD_IS_GPU)
+  add_subdirectory(tools)
+endif()
 
 if(BUILD_TESTING)
   if(MAGE_BUILD_IS_GPU)
