@@ -32,6 +32,7 @@ mage/
 │       └── Testing/    # APIs for GPU accuracy measurement and differential testing
 ├── lib/                # Mage library implementations (mirrors include/mage/)
 ├── test/               # Executables for accuracy measurement and differential testing
+├── tools/              # Command-line tools
 └── unittests/          # Unit tests for Mage components
 ````
 

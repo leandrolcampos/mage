@@ -2,10 +2,30 @@
 
 This document outlines how to configure, build, and test Mage.
 
-Mage is expected to be built with the LLVM-based toolchain described in
-[Building LLVM](BuildingLLVM.md).
+## 1. Install the Basic Toolchain
 
-## 1. Configure the Build
+Install the host packages required to build Mage and its LLVM-based toolchain:
+
+```bash
+sudo apt update
+sudo apt -y install \
+  build-essential \
+  ccache \
+  cmake \
+  gcc-multilib \
+  git \
+  libmpfr-dev \
+  ninja-build \
+  python3 \
+  python3-pip
+```
+
+Mage must be built with the LLVM-based toolchain described in
+[Building LLVM](BuildingLLVM.md). Follow that guide to build and install the
+required LLVM subprojects before configuring Mage. The commands below assume
+that `LLVM_ROOT` names the resulting LLVM installation.
+
+## 2. Configure the Build
 
 The following command configures a standard out-of-tree Ninja build for Mage
 with the host, AMDGPU, and NVPTX builds enabled:
@@ -27,7 +47,7 @@ cmake -S . -B build -G Ninja \
   -DMAGE_GPU_TARGET_TRIPLES=""
 ```
 
-## 2. Common Build Targets
+## 3. Common Build Targets
 
 Build the Mage library for the host build and for all enabled GPU builds:
 
@@ -57,7 +77,7 @@ Build only the Mage library for the NVPTX build:
 ninja -C build mage-nvptx64-nvidia-cuda
 ```
 
-## 3. Configure GPU Builds Explicitly
+## 4. Configure GPU Builds Explicitly
 
 Configure only the AMDGPU build directory:
 
@@ -74,7 +94,7 @@ ninja -C build configure-mage-nvptx64-nvidia-cuda
 These targets are useful when you want to configure or refresh a GPU build
 directory without immediately building the Mage library in that directory.
 
-## 4. Run the Unit Tests
+## 5. Run the Unit Tests
 
 The `mage` and `mage-all` targets build the Mage library. Unit tests use
 dedicated `check-mage` targets, which build the required test executables and
@@ -98,7 +118,7 @@ Run the NVPTX unit tests:
 ninja -C build check-mage-nvptx64-nvidia-cuda
 ```
 
-## 5. Work Directly Inside a GPU Build
+## 6. Work Directly Inside a GPU Build
 
 After a GPU build has been configured, it can also be built and tested directly
 from its own build directory.
@@ -110,7 +130,7 @@ ninja -C build/amdgcn-amd-amdhsa mage
 ninja -C build/amdgcn-amd-amdhsa check-mage
 ```
 
-## 6. Run a Single Unit Test
+## 7. Run a Single Unit Test
 
 CTest does not build test executables by itself. If the test executable has not
 already been built, build its Ninja target first.
@@ -130,7 +150,30 @@ ninja -C build/amdgcn-amd-amdhsa <test-target>
 ctest --output-on-failure --test-dir build/amdgcn-amd-amdhsa -R "^<test-name>$"
 ```
 
-## 7. Relevant CMake Cache Variables
+## 8. Build Command-Line Tools
+
+Command-line tools are host executables written to `build/bin`. They are not
+included in the default `mage-all` target.
+
+Build all command-line tools:
+
+```bash
+ninja -C build mage-tools
+```
+
+Build a single command-line tool:
+
+```bash
+ninja -C build mage-worst-cases
+```
+
+For example, run `mage-worst-cases` with:
+
+```bash
+./build/bin/mage-worst-cases
+```
+
+## 9. Relevant CMake Cache Variables
 
 Mage exposes several CMake cache variables as part of its build interface. The
 most relevant ones are:

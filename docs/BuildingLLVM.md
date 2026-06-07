@@ -70,7 +70,15 @@ Install the minimal host toolchain required to configure, build, and test the ne
 
 ```bash
 sudo apt update
-sudo apt -y install build-essential git cmake ninja-build ccache gcc-multilib python3 python3-pip
+sudo apt -y install \
+  build-essential \
+  ccache \
+  cmake \
+  gcc-multilib \
+  git \
+  ninja-build \
+  python3 \
+  python3-pip
 ```
 
 ## 6. Check Out the LLVM Fork
