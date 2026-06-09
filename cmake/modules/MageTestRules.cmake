@@ -16,7 +16,7 @@ include_guard(GLOBAL)
 #     [LINK_LIBRARIES <list of linking libraries for this target>]
 #     [NO_COMMON_COMPILE_OPTIONS]
 #   )
-function(add_mage_unittest_framework_library name)
+function(add_mage_unittest_framework_library target_name)
   cmake_parse_arguments(MAGE_UNITTEST_FRAMEWORK
     "NO_COMMON_COMPILE_OPTIONS"
     ""
@@ -25,13 +25,13 @@ function(add_mage_unittest_framework_library name)
 
   if(MAGE_UNITTEST_FRAMEWORK_UNPARSED_ARGUMENTS)
     message(FATAL_ERROR
-      "add_mage_unittest_framework_library(${name}) received unexpected "
-      "arguments: ${MAGE_UNITTEST_FRAMEWORK_UNPARSED_ARGUMENTS}")
+      "add_mage_unittest_framework_library(${target_name}) received "
+      "unexpected arguments: ${MAGE_UNITTEST_FRAMEWORK_UNPARSED_ARGUMENTS}")
   endif()
 
   if(NOT MAGE_UNITTEST_FRAMEWORK_SRCS)
     message(FATAL_ERROR
-      "add_mage_unittest_framework_library(${name}) requires SRCS")
+      "add_mage_unittest_framework_library(${target_name}) requires SRCS")
   endif()
 
   _mage_builds_include_current_build(
@@ -49,23 +49,31 @@ function(add_mage_unittest_framework_library name)
 
   _mage_resolve_common_compile_options(compile_options ${compile_option_args})
 
-  add_library(${name} STATIC EXCLUDE_FROM_ALL
+  _mage_get_build_definitions(compile_definitions)
+
+  add_library(${target_name} STATIC EXCLUDE_FROM_ALL
     ${MAGE_UNITTEST_FRAMEWORK_SRCS})
 
-  target_include_directories(${name}
+  target_include_directories(${target_name}
     PUBLIC
       "${PROJECT_SOURCE_DIR}/unittests"
     PRIVATE
       "${MAGE_SOURCE_INCLUDE_DIR}")
 
   if(compile_options)
-    target_compile_options(${name}
+    target_compile_options(${target_name}
       PRIVATE
         ${compile_options})
   endif()
 
+  if(compile_definitions)
+    target_compile_definitions(${target_name}
+      PRIVATE
+        ${compile_definitions})
+  endif()
+
   if(MAGE_UNITTEST_FRAMEWORK_LINK_LIBRARIES)
-    target_link_libraries(${name}
+    target_link_libraries(${target_name}
       PRIVATE
         ${MAGE_UNITTEST_FRAMEWORK_LINK_LIBRARIES})
   endif()
@@ -129,6 +137,8 @@ function(add_mage_unittest target_name)
 
   _mage_resolve_common_compile_options(compile_options ${compile_option_args})
 
+  _mage_get_build_definitions(compile_definitions)
+
   set(link_option_args
     IS_TEST
     LINK_OPTIONS ${MAGE_UNITTEST_LINK_OPTIONS})
@@ -166,6 +176,12 @@ function(add_mage_unittest target_name)
     target_compile_options(${target_name}
       PRIVATE
         ${compile_options})
+  endif()
+
+  if(compile_definitions)
+    target_compile_definitions(${target_name}
+      PRIVATE
+        ${compile_definitions})
   endif()
 
   if(link_options)
