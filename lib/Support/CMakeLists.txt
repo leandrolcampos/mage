@@ -1,0 +1,9 @@
+add_mage_library(
+  MageSupport
+  SRCS
+    Parallel.cpp
+  BUILDS
+    HOST
+  LINK_LIBRARIES
+    Mage::LLVMSupport
+)

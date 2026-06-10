@@ -1,4 +1,26 @@
 add_mage_unittest(
+  ParallelTest
+  SRCS
+    ParallelTest.cpp
+  BUILDS
+    HOST
+  LINK_LIBRARIES
+    MageSupport
+    Mage::LLVMSupport
+)
+
+add_mage_unittest(
+  SequentialTest
+  SRCS
+    SequentialTest.cpp
+  BUILDS
+    HOST
+  LINK_LIBRARIES
+    MageSupport
+    Mage::LLVMSupport
+)
+
+add_mage_unittest(
   RangeTest
   SRCS
     RangeTest.cpp

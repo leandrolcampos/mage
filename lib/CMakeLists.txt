@@ -10,3 +10,4 @@ add_custom_target(mage-bitcode-libraries)
 add_dependencies(mage mage-bitcode-libraries)
 
 add_subdirectory(Foo)
+add_subdirectory(Support)
