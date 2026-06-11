@@ -22,9 +22,9 @@
 
 using namespace mage;
 
-unsigned parallel::getThreadIndex() { return llvm::parallel::getThreadIndex(); }
-
 size_t parallel::getThreadCount() { return llvm::parallel::getThreadCount(); }
+
+unsigned parallel::getThreadIndex() { return llvm::parallel::getThreadIndex(); }
 
 void parallel::detail::parallelize(size_t NumWorkItems,
                                    llvm::function_ref<void(size_t)> Fn) {
@@ -35,7 +35,7 @@ void parallel::detail::parallelize(size_t NumWorkItems,
 
   const size_t NumWorkers = std::min(NumWorkItems, parallel::getThreadCount());
 
-  std::atomic<size_t> NextItemIndex{0};
+  std::atomic<size_t> NextItemIndex = 0;
   auto Worker = [&] {
     while (true) {
       const size_t ItemIndex =

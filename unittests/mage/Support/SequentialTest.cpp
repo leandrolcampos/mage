@@ -46,7 +46,7 @@ MAGE_TEST_F(SequentialTest, RunsEachItemOnce) {
   size_t TotalCount = 0;
 
   const size_t NumThreads = getThreadCount();
-  MAGE_ASSERT_EQ(NumThreads, static_cast<size_t>(1));
+  MAGE_ASSERT_EQ(NumThreads, size_t(1));
 
   parallelize(NumWorkItems, [&](size_t ItemIndex) {
     ++Counts[ItemIndex];

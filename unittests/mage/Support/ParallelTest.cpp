@@ -39,7 +39,7 @@ MAGE_TEST(ParallelTest, RunsEachItemOnce) {
   std::atomic<size_t> TotalCount = 0;
 
   const size_t NumThreads = getThreadCount();
-  MAGE_ASSERT_GE(NumThreads, static_cast<size_t>(1));
+  MAGE_ASSERT_GE(NumThreads, size_t(1));
 
   parallelize(NumWorkItems, [&](size_t ItemIndex) {
     Counts[ItemIndex].fetch_add(1, std::memory_order_relaxed);
