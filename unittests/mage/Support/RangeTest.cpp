@@ -25,12 +25,20 @@
 
 using namespace mage::numeric;
 
+using mage::testing::Test;
+using mage::testing::TestCond;
+using mage::testing::tlog;
+using mage::testing::detail::Location;
+
 #define EXPECT_VALUE_EQ(LHS, RHS)                                              \
   (void)this->expectValueEQ((LHS), (RHS), #LHS, #RHS, MAGE_TEST_LOC_())
 
-#define EXPECT_RANGE_EQ(Inclusive, Begin, End, Stride, Expected)               \
-  this->template expectRangeEQ<Inclusive>((Begin), (End), (Stride),            \
-                                          (Expected), MAGE_TEST_LOC_())
+#define EXPECT_RANGE_VALUES(Range, Expected)                                   \
+  this->expectRangeValues((Range), (Expected), MAGE_TEST_LOC_())
+
+#define EXPECT_STRIDED_PARTITIONING_MATCHES_RANGE(Range, NumParts)             \
+  this->expectStridedPartitioningMatchesRange((Range), (NumParts),             \
+                                              MAGE_TEST_LOC_())
 
 template <typename T> static constexpr auto getValueForComparison(T Value) {
   if constexpr (is_floating_point_v<T>) {
@@ -50,7 +58,7 @@ template <typename T> static constexpr uint64_t getFiniteSymmetricSize(T Max) {
 template <typename T> static constexpr T getPreviousPositiveValue(T Value) {
   using StorageType = storage_type_t<T>;
   const StorageType Bits = bit_cast<StorageType>(Value);
-  return bit_cast<T>(static_cast<StorageType>(Bits - 1));
+  return bit_cast<T>(StorageType(Bits - 1));
 }
 
 template <typename T> static const char *getTypeName() {
@@ -83,43 +91,120 @@ template <typename T> struct TypeTag {
   using type = T;
 };
 
-class RangeTest : public mage::testing::Test {
+class RangeTest : public Test {
 protected:
   template <typename T>
   bool expectValueEQ(T LHS, T RHS, const char *LHSStr, const char *RHSStr,
-                     mage::testing::detail::Location Loc) {
-    return this->test<mage::testing::TestCond::EQ>(getValueForComparison(LHS),
-                                                   getValueForComparison(RHS),
-                                                   LHSStr, RHSStr, Loc);
+                     Location Loc) {
+    return this->test<TestCond::EQ>(getValueForComparison(LHS),
+                                    getValueForComparison(RHS), LHSStr, RHSStr,
+                                    Loc);
   }
 
-  template <bool Inclusive, typename T, size_t N>
-  void
-  expectRangeEQ(T Begin, T End, typename range<T, Inclusive>::size_type Stride,
-                const T (&Expected)[N], mage::testing::detail::Location Loc) {
-    const range<T, Inclusive> Range(Begin, End, Stride);
+  template <typename T, bool Inclusive, size_t N>
+  void expectRangeValues(const range<T, Inclusive> &Range,
+                         const T (&Expected)[N], Location Loc) {
     using size_type = typename range<T, Inclusive>::size_type;
 
-    if (!this->test<mage::testing::TestCond::EQ>(Range.size(),
-                                                 static_cast<size_type>(N),
-                                                 "Range<T>.size()", "N", Loc)) {
-      mage::testing::tlog() << "    Where T is: " << getTypeName<T>() << '\n';
+    if (!this->test<TestCond::EQ>(Range.size(), size_type(N), "Range.size()",
+                                  "N", Loc)) {
+      tlog() << "    Where T is: " << getTypeName<T>() << '\n';
       return;
     }
 
-    for (size_type I = 0; I != N; ++I) {
-      if (!expectValueEQ(Range[I], Expected[I], "Range<T>[I]", "Expected<T>[I]",
-                         Loc)) {
-        mage::testing::tlog() << "    Where T is: " << getTypeName<T>() << '\n';
-        mage::testing::tlog() << "    Where I is: " << I << '\n';
+    for (size_type I = 0; I < N; ++I)
+      if (!expectValueEQ(Range[I], Expected[I], "Range[I]", "Expected[I]", Loc))
+        tlog() << "    Where T is: " << getTypeName<T>() << '\n'
+               << "          I is: " << I << '\n';
+  }
+
+  template <typename T, bool Inclusive>
+  void expectStridedPartitioningMatchesRange(
+      const range<T, Inclusive> &Range,
+      typename range<T, Inclusive>::size_type NumParts, Location Loc) {
+    using size_type = typename range<T, Inclusive>::size_type;
+
+    size_type TotalSize = 0;
+    for (size_type PartIndex = 0; PartIndex < NumParts; ++PartIndex) {
+      const auto Partition = Range.stridedPartition(PartIndex, NumParts);
+      const size_type ExpectedSize =
+          (Range.size() - 1 - PartIndex) / NumParts + 1;
+      TotalSize += Partition.size();
+
+      if (!this->test<TestCond::EQ>(Partition.size(), ExpectedSize,
+                                    "Partition.size()", "ExpectedSize", Loc)) {
+        tlog() << "    Where T is: " << getTypeName<T>() << '\n'
+               << "  PartIndex is: " << PartIndex << '\n';
+        continue;
+      }
+
+      for (size_type I = 0; I < Partition.size(); ++I) {
+        const size_type RangeIndex = PartIndex + I * NumParts;
+        if (!expectValueEQ(Partition[I], Range[RangeIndex], "Partition[I]",
+                           "Range[RangeIndex]", Loc))
+          tlog() << "    Where T is: " << getTypeName<T>() << '\n'
+                 << "  PartIndex is: " << PartIndex << '\n'
+                 << "          I is: " << I << '\n'
+                 << " RangeIndex is: " << RangeIndex << '\n';
       }
     }
+
+    this->test<TestCond::EQ>(TotalSize, Range.size(), "TotalSize",
+                             "Range.size()", Loc);
   }
 };
 
 } // namespace
 
-MAGE_TEST_F(RangeTest, MatchesIteratorSequence) {
+//===----------------------------------------------------------------------===//
+// Compile-time evaluation
+//===----------------------------------------------------------------------===//
+
+static constexpr range<int32_t> Range(-2, 4, 2);
+static_assert(Range.size() == 4);
+static_assert(Range[0] == -2);
+static_assert(Range[3] == 4);
+
+static constexpr auto Partition = Range.stridedPartition(1, 2);
+static_assert(Partition.size() == 2);
+static_assert(Partition[0] == 0);
+static_assert(Partition[1] == 4);
+
+static constexpr range<int32_t, false> ExclusiveRange(-2, 5, 2);
+static constexpr auto ExclusivePartition =
+    ExclusiveRange.stridedPartition(0, 3);
+static_assert(ExclusivePartition.size() == 2);
+static_assert(ExclusivePartition[0] == -2);
+static_assert(ExclusivePartition[1] == 4);
+
+static constexpr range<float> FloatRange(-0.0f, 0.0f);
+static_assert(FloatRange.size() == 2);
+static_assert(bit_cast<uint32_t>(FloatRange[0]) == 0x80000000u);
+static_assert(bit_cast<uint32_t>(FloatRange[1]) == 0);
+
+static constexpr bool iteratorsWorkInConstantExpressions() {
+  constexpr range<int32_t> Range(-2, 2, 2);
+  auto It = Range.begin();
+
+  if (*It != -2)
+    return false;
+  ++It;
+  if (*It != 0)
+    return false;
+  ++It;
+  if (*It != 2)
+    return false;
+  ++It;
+  return It == Range.end();
+}
+
+static_assert(iteratorsWorkInConstantExpressions());
+
+//===----------------------------------------------------------------------===//
+// Value generation and iteration
+//===----------------------------------------------------------------------===//
+
+MAGE_TEST_F(RangeTest, IteratorsProduceIndexedValues) {
   const range<int32_t> Range(-2, 2, 2);
   auto It = Range.begin();
   const auto End = Range.end();
@@ -141,28 +226,22 @@ MAGE_TEST_F(RangeTest, MatchesIteratorSequence) {
   MAGE_EXPECT_FALSE(It != End);
 }
 
-MAGE_TEST_F(RangeTest, MatchesIntSmallRanges) {
+MAGE_TEST_F(RangeTest, ProducesExpectedSignedIntegerValues) {
   auto ExpectType = [this](auto Tag) {
     using T = typename decltype(Tag)::type;
+    using InclusiveRange = range<T>;
+    using ExclusiveRange = range<T, false>;
     (void)Tag;
 
-    constexpr T InclusiveStrideOne[] = {static_cast<T>(-2), static_cast<T>(-1),
-                                        static_cast<T>(0), static_cast<T>(1),
-                                        static_cast<T>(2)};
-    constexpr T InclusiveStrideTwo[] = {static_cast<T>(-2), static_cast<T>(0),
-                                        static_cast<T>(2)};
-    constexpr T ExclusiveStrideOne[] = {static_cast<T>(-2), static_cast<T>(-1),
-                                        static_cast<T>(0), static_cast<T>(1)};
-    constexpr T ExclusiveStrideTwo[] = {static_cast<T>(-2), static_cast<T>(0)};
+    constexpr T InclusiveStrideOne[] = {-2, -1, 0, 1, 2};
+    constexpr T InclusiveStrideTwo[] = {-2, 0, 2};
+    constexpr T ExclusiveStrideOne[] = {-2, -1, 0, 1};
+    constexpr T ExclusiveStrideTwo[] = {-2, 0};
 
-    EXPECT_RANGE_EQ(true, (static_cast<T>(-2)), (static_cast<T>(2)), 1,
-                    InclusiveStrideOne);
-    EXPECT_RANGE_EQ(true, (static_cast<T>(-2)), (static_cast<T>(2)), 2,
-                    InclusiveStrideTwo);
-    EXPECT_RANGE_EQ(false, (static_cast<T>(-2)), (static_cast<T>(2)), 1,
-                    ExclusiveStrideOne);
-    EXPECT_RANGE_EQ(false, (static_cast<T>(-2)), (static_cast<T>(2)), 2,
-                    ExclusiveStrideTwo);
+    EXPECT_RANGE_VALUES(InclusiveRange(-2, 2), InclusiveStrideOne);
+    EXPECT_RANGE_VALUES(InclusiveRange(-2, 2, 2), InclusiveStrideTwo);
+    EXPECT_RANGE_VALUES(ExclusiveRange(-2, 2), ExclusiveStrideOne);
+    EXPECT_RANGE_VALUES(ExclusiveRange(-2, 2, 2), ExclusiveStrideTwo);
   };
 
   ExpectType(TypeTag<int16_t>{});
@@ -170,28 +249,22 @@ MAGE_TEST_F(RangeTest, MatchesIntSmallRanges) {
   ExpectType(TypeTag<int64_t>{});
 }
 
-MAGE_TEST_F(RangeTest, MatchesUIntSmallRanges) {
+MAGE_TEST_F(RangeTest, ProducesExpectedUnsignedIntegerValues) {
   auto ExpectType = [this](auto Tag) {
     using T = typename decltype(Tag)::type;
+    using InclusiveRange = range<T>;
+    using ExclusiveRange = range<T, false>;
     (void)Tag;
 
-    constexpr T InclusiveStrideOne[] = {static_cast<T>(0), static_cast<T>(1),
-                                        static_cast<T>(2), static_cast<T>(3),
-                                        static_cast<T>(4)};
-    constexpr T InclusiveStrideTwo[] = {static_cast<T>(0), static_cast<T>(2),
-                                        static_cast<T>(4)};
-    constexpr T ExclusiveStrideOne[] = {static_cast<T>(0), static_cast<T>(1),
-                                        static_cast<T>(2), static_cast<T>(3)};
-    constexpr T ExclusiveStrideTwo[] = {static_cast<T>(0), static_cast<T>(2)};
+    constexpr T InclusiveStrideOne[] = {0, 1, 2, 3, 4};
+    constexpr T InclusiveStrideTwo[] = {0, 2, 4};
+    constexpr T ExclusiveStrideOne[] = {0, 1, 2, 3};
+    constexpr T ExclusiveStrideTwo[] = {0, 2};
 
-    EXPECT_RANGE_EQ(true, (static_cast<T>(0)), (static_cast<T>(4)), 1,
-                    InclusiveStrideOne);
-    EXPECT_RANGE_EQ(true, (static_cast<T>(0)), (static_cast<T>(4)), 2,
-                    InclusiveStrideTwo);
-    EXPECT_RANGE_EQ(false, (static_cast<T>(0)), (static_cast<T>(4)), 1,
-                    ExclusiveStrideOne);
-    EXPECT_RANGE_EQ(false, (static_cast<T>(0)), (static_cast<T>(4)), 2,
-                    ExclusiveStrideTwo);
+    EXPECT_RANGE_VALUES(InclusiveRange(0, 4), InclusiveStrideOne);
+    EXPECT_RANGE_VALUES(InclusiveRange(0, 4, 2), InclusiveStrideTwo);
+    EXPECT_RANGE_VALUES(ExclusiveRange(0, 4), ExclusiveStrideOne);
+    EXPECT_RANGE_VALUES(ExclusiveRange(0, 4, 2), ExclusiveStrideTwo);
   };
 
   ExpectType(TypeTag<uint16_t>{});
@@ -199,14 +272,16 @@ MAGE_TEST_F(RangeTest, MatchesUIntSmallRanges) {
   ExpectType(TypeTag<uint64_t>{});
 }
 
-MAGE_TEST_F(RangeTest, MatchesFPSmallRanges) {
+MAGE_TEST_F(RangeTest, ProducesExpectedFloatingPointValues) {
   auto ExpectType = [this](auto Tag, auto TrueMinValue) {
     using T = typename decltype(Tag)::type;
+    using InclusiveRange = range<T>;
+    using ExclusiveRange = range<T, false>;
     (void)Tag;
 
-    const T TrueMin = static_cast<T>(TrueMinValue);
-    const T NegativeZero = -static_cast<T>(0.0);
-    const T PositiveZero = static_cast<T>(0.0);
+    const T TrueMin = TrueMinValue;
+    const T NegativeZero = -0.0;
+    const T PositiveZero = 0.0;
 
     const T InclusiveStrideOne[] = {-TrueMin, NegativeZero, PositiveZero,
                                     TrueMin};
@@ -214,10 +289,12 @@ MAGE_TEST_F(RangeTest, MatchesFPSmallRanges) {
     const T ExclusiveStrideOne[] = {-TrueMin, NegativeZero, PositiveZero};
     const T ExclusiveStrideTwo[] = {-TrueMin, PositiveZero};
 
-    EXPECT_RANGE_EQ(true, (-TrueMin), TrueMin, 1, InclusiveStrideOne);
-    EXPECT_RANGE_EQ(true, (-TrueMin), TrueMin, 2, InclusiveStrideTwo);
-    EXPECT_RANGE_EQ(false, (-TrueMin), TrueMin, 1, ExclusiveStrideOne);
-    EXPECT_RANGE_EQ(false, (-TrueMin), TrueMin, 2, ExclusiveStrideTwo);
+    EXPECT_RANGE_VALUES(InclusiveRange(-TrueMin, TrueMin), InclusiveStrideOne);
+    EXPECT_RANGE_VALUES(InclusiveRange(-TrueMin, TrueMin, 2),
+                        InclusiveStrideTwo);
+    EXPECT_RANGE_VALUES(ExclusiveRange(-TrueMin, TrueMin), ExclusiveStrideOne);
+    EXPECT_RANGE_VALUES(ExclusiveRange(-TrueMin, TrueMin, 2),
+                        ExclusiveStrideTwo);
   };
 
   // TODO: Use FPInfo to get machine limits for floating point types.
@@ -226,12 +303,16 @@ MAGE_TEST_F(RangeTest, MatchesFPSmallRanges) {
   ExpectType(TypeTag<double>{}, DBL_TRUE_MIN);
 }
 
-MAGE_TEST_F(RangeTest, MatchesFPFiniteRanges) {
+//===----------------------------------------------------------------------===//
+// Boundary domains
+//===----------------------------------------------------------------------===//
+
+MAGE_TEST_F(RangeTest, SupportsFiniteFloatingPointDomains) {
   auto ExpectType = [this](auto Tag, auto MaxValue) {
     using T = typename decltype(Tag)::type;
     (void)Tag;
 
-    const T Max = static_cast<T>(MaxValue);
+    const T Max = MaxValue;
     const uint64_t InclusiveSize = getFiniteSymmetricSize(Max);
     const T PreviousMax = getPreviousPositiveValue(Max);
 
@@ -264,14 +345,14 @@ MAGE_TEST_F(RangeTest, MatchesFPFiniteRanges) {
   ExpectType(TypeTag<double>{}, DBL_MAX);
 }
 
-MAGE_TEST_F(RangeTest, MatchesIntFullRanges) {
+MAGE_TEST_F(RangeTest, SupportsFullSignedIntegerDomains) {
   auto ExpectType = [this](auto Tag, auto MinValue, auto MaxValue,
                            uint64_t NumValues) {
     using T = typename decltype(Tag)::type;
     (void)Tag;
 
-    const T Min = static_cast<T>(MinValue);
-    const T Max = static_cast<T>(MaxValue);
+    const T Min = T(MinValue);
+    const T Max = T(MaxValue);
 
     const range<T> InclusiveStrideOne(Min, Max);
     EXPECT_VALUE_EQ(InclusiveStrideOne.size(), NumValues);
@@ -282,23 +363,21 @@ MAGE_TEST_F(RangeTest, MatchesIntFullRanges) {
     EXPECT_VALUE_EQ(ExclusiveStrideOne.size(), NumValues - 1);
     EXPECT_VALUE_EQ(ExclusiveStrideOne[0], Min);
     EXPECT_VALUE_EQ(ExclusiveStrideOne[ExclusiveStrideOne.size() - 1],
-                    static_cast<T>(Max - static_cast<T>(1)));
+                    T(Max - 1));
 
     const range<T> InclusiveStrideTwo(Min, Max, 2);
     EXPECT_VALUE_EQ(InclusiveStrideTwo.size(), NumValues / 2);
     EXPECT_VALUE_EQ(InclusiveStrideTwo[0], Min);
-    EXPECT_VALUE_EQ(InclusiveStrideTwo[1],
-                    static_cast<T>(Min + static_cast<T>(2)));
+    EXPECT_VALUE_EQ(InclusiveStrideTwo[1], T(Min + 2));
     EXPECT_VALUE_EQ(InclusiveStrideTwo[InclusiveStrideTwo.size() - 1],
-                    static_cast<T>(Max - static_cast<T>(1)));
+                    T(Max - 1));
 
     const range<T, false> ExclusiveStrideTwo(Min, Max, 2);
     EXPECT_VALUE_EQ(ExclusiveStrideTwo.size(), NumValues / 2);
     EXPECT_VALUE_EQ(ExclusiveStrideTwo[0], Min);
-    EXPECT_VALUE_EQ(ExclusiveStrideTwo[1],
-                    static_cast<T>(Min + static_cast<T>(2)));
+    EXPECT_VALUE_EQ(ExclusiveStrideTwo[1], T(Min + 2));
     EXPECT_VALUE_EQ(ExclusiveStrideTwo[ExclusiveStrideTwo.size() - 1],
-                    static_cast<T>(Max - static_cast<T>(1)));
+                    T(Max - 1));
   };
 
   // TODO: Use FPInfo to get machine limits for integer types.
@@ -306,13 +385,13 @@ MAGE_TEST_F(RangeTest, MatchesIntFullRanges) {
   ExpectType(TypeTag<int32_t>{}, INT32_MIN, INT32_MAX, 4294967296ull);
 }
 
-MAGE_TEST_F(RangeTest, MatchesUIntFullRanges) {
+MAGE_TEST_F(RangeTest, SupportsFullUnsignedIntegerDomains) {
   auto ExpectType = [this](auto Tag, auto MaxValue, uint64_t NumValues) {
     using T = typename decltype(Tag)::type;
     (void)Tag;
 
-    const T Min = static_cast<T>(0);
-    const T Max = static_cast<T>(MaxValue);
+    const T Min = 0;
+    const T Max = T(MaxValue);
 
     const range<T> InclusiveStrideOne(Min, Max);
     EXPECT_VALUE_EQ(InclusiveStrideOne.size(), NumValues);
@@ -323,31 +402,31 @@ MAGE_TEST_F(RangeTest, MatchesUIntFullRanges) {
     EXPECT_VALUE_EQ(ExclusiveStrideOne.size(), NumValues - 1);
     EXPECT_VALUE_EQ(ExclusiveStrideOne[0], Min);
     EXPECT_VALUE_EQ(ExclusiveStrideOne[ExclusiveStrideOne.size() - 1],
-                    static_cast<T>(Max - static_cast<T>(1)));
+                    T(Max - 1));
 
     const range<T> InclusiveStrideTwo(Min, Max, 2);
     EXPECT_VALUE_EQ(InclusiveStrideTwo.size(), NumValues / 2);
     EXPECT_VALUE_EQ(InclusiveStrideTwo[0], Min);
-    EXPECT_VALUE_EQ(InclusiveStrideTwo[1], static_cast<T>(2));
+    EXPECT_VALUE_EQ(InclusiveStrideTwo[1], T(2));
     EXPECT_VALUE_EQ(InclusiveStrideTwo[InclusiveStrideTwo.size() - 1],
-                    static_cast<T>(Max - static_cast<T>(1)));
+                    T(Max - 1));
 
     const range<T, false> ExclusiveStrideTwo(Min, Max, 2);
     EXPECT_VALUE_EQ(ExclusiveStrideTwo.size(), NumValues / 2);
     EXPECT_VALUE_EQ(ExclusiveStrideTwo[0], Min);
-    EXPECT_VALUE_EQ(ExclusiveStrideTwo[1], static_cast<T>(2));
+    EXPECT_VALUE_EQ(ExclusiveStrideTwo[1], T(2));
     EXPECT_VALUE_EQ(ExclusiveStrideTwo[ExclusiveStrideTwo.size() - 1],
-                    static_cast<T>(Max - static_cast<T>(1)));
+                    T(Max - 1));
   };
 
   ExpectType(TypeTag<uint16_t>{}, UINT16_MAX, 65536);
   ExpectType(TypeTag<uint32_t>{}, UINT32_MAX, 4294967296ull);
 }
 
-MAGE_TEST_F(RangeTest, Matches64BitBoundaryRanges) {
+MAGE_TEST_F(RangeTest, Supports64BitBoundaryDomains) {
   const range<uint64_t, false> UIntExclusive(0, UINT64_MAX);
   EXPECT_VALUE_EQ(UIntExclusive.size(), UINT64_MAX);
-  EXPECT_VALUE_EQ(UIntExclusive[0], uint64_t{0});
+  EXPECT_VALUE_EQ(UIntExclusive[0], uint64_t(0));
   EXPECT_VALUE_EQ(UIntExclusive[UIntExclusive.size() - 1], UINT64_MAX - 1);
 
   const range<int64_t, false> IntExclusive(INT64_MIN, INT64_MAX);
@@ -357,9 +436,111 @@ MAGE_TEST_F(RangeTest, Matches64BitBoundaryRanges) {
 
   const range<uint64_t> UIntInclusive(1, UINT64_MAX);
   EXPECT_VALUE_EQ(UIntInclusive.size(), UINT64_MAX);
-  EXPECT_VALUE_EQ(UIntInclusive[0], uint64_t{1});
+  EXPECT_VALUE_EQ(UIntInclusive[0], uint64_t(1));
   EXPECT_VALUE_EQ(UIntInclusive[UIntInclusive.size() - 1], UINT64_MAX);
+
+  const range<int64_t> IntInclusive(INT64_MIN + 1, INT64_MAX);
+  EXPECT_VALUE_EQ(IntInclusive.size(), UINT64_MAX);
+  EXPECT_VALUE_EQ(IntInclusive[0], INT64_MIN + 1);
+  EXPECT_VALUE_EQ(IntInclusive[IntInclusive.size() - 1], INT64_MAX);
 }
 
-#undef EXPECT_RANGE_EQ
+//===----------------------------------------------------------------------===//
+// Strided partitioning
+//===----------------------------------------------------------------------===//
+
+MAGE_TEST_F(RangeTest, DistributesElementsAmongStridedPartitions) {
+  const range<int32_t> Range(0, 9);
+  const int32_t Expected0[] = {0, 3, 6, 9};
+  const int32_t Expected1[] = {1, 4, 7};
+  const int32_t Expected2[] = {2, 5, 8};
+
+  EXPECT_RANGE_VALUES(Range.stridedPartition(0, 3), Expected0);
+  EXPECT_RANGE_VALUES(Range.stridedPartition(1, 3), Expected1);
+  EXPECT_RANGE_VALUES(Range.stridedPartition(2, 3), Expected2);
+  EXPECT_STRIDED_PARTITIONING_MATCHES_RANGE(Range, 3);
+}
+
+MAGE_TEST_F(RangeTest, StridedPartitionsPreserveOriginalStride) {
+  const range<int32_t> Range(10, 20, 2);
+  const int32_t Expected0[] = {10, 16};
+  const int32_t Expected1[] = {12, 18};
+  const int32_t Expected2[] = {14, 20};
+
+  EXPECT_RANGE_VALUES(Range.stridedPartition(0, 3), Expected0);
+  EXPECT_RANGE_VALUES(Range.stridedPartition(1, 3), Expected1);
+  EXPECT_RANGE_VALUES(Range.stridedPartition(2, 3), Expected2);
+  EXPECT_STRIDED_PARTITIONING_MATCHES_RANGE(Range, 3);
+}
+
+MAGE_TEST_F(RangeTest, StridedPartitionsSupportExclusiveRanges) {
+  const range<int32_t, false> Range(-4, 5, 2);
+  const int32_t Expected0[] = {-4, 0, 4};
+  const int32_t Expected1[] = {-2, 2};
+
+  EXPECT_RANGE_VALUES(Range.stridedPartition(0, 2), Expected0);
+  EXPECT_RANGE_VALUES(Range.stridedPartition(1, 2), Expected1);
+  EXPECT_STRIDED_PARTITIONING_MATCHES_RANGE(Range, 2);
+}
+
+MAGE_TEST_F(RangeTest, StridedPartitionsSupportBoundaryEndpoints) {
+  const range<uint64_t, false> Range(UINT64_MAX - 5, UINT64_MAX, 2);
+  EXPECT_STRIDED_PARTITIONING_MATCHES_RANGE(Range, 2);
+}
+
+MAGE_TEST_F(RangeTest, StridedPartitioningWithOnePartitionPreservesRange) {
+  const range<int32_t> Range(-2, 2);
+  EXPECT_STRIDED_PARTITIONING_MATCHES_RANGE(Range, 1);
+}
+
+MAGE_TEST_F(RangeTest, StridedPartitioningIntoRangeSizeProducesSingletons) {
+  const range<int32_t> Range(-2, 2);
+  EXPECT_STRIDED_PARTITIONING_MATCHES_RANGE(Range, Range.size());
+}
+
+MAGE_TEST_F(RangeTest, StridedPartitionsSupportSingletonRanges) {
+  const range<int32_t> Range(42, 42);
+  EXPECT_STRIDED_PARTITIONING_MATCHES_RANGE(Range, 1);
+}
+
+MAGE_TEST_F(RangeTest, StridedPartitionsSupportNarrowIntegerRanges) {
+  const range<int16_t> SignedRange(-10, 10, 3);
+  EXPECT_STRIDED_PARTITIONING_MATCHES_RANGE(SignedRange, 4);
+
+  const range<uint16_t> UnsignedRange(2, 30, 4);
+  EXPECT_STRIDED_PARTITIONING_MATCHES_RANGE(UnsignedRange, 5);
+}
+
+MAGE_TEST_F(RangeTest, StridedPartitionsPreserveFloatingPointOrdering) {
+  auto ExpectType = [this](auto Tag, auto TrueMinValue) {
+    using T = typename decltype(Tag)::type;
+    (void)Tag;
+
+    const T TrueMin = TrueMinValue;
+    const T NegativeZero = -0.0;
+    const T PositiveZero = 0.0;
+    const range<T> Range(-TrueMin, TrueMin);
+    const T Expected0[] = {-TrueMin, TrueMin};
+    const T Expected1[] = {NegativeZero};
+    const T Expected2[] = {PositiveZero};
+
+    EXPECT_RANGE_VALUES(Range.stridedPartition(0, 3), Expected0);
+    EXPECT_RANGE_VALUES(Range.stridedPartition(1, 3), Expected1);
+    EXPECT_RANGE_VALUES(Range.stridedPartition(2, 3), Expected2);
+    EXPECT_STRIDED_PARTITIONING_MATCHES_RANGE(Range, 3);
+  };
+
+  ExpectType(TypeTag<mage::float16>{}, __FLT16_DENORM_MIN__);
+  ExpectType(TypeTag<float>{}, FLT_TRUE_MIN);
+  ExpectType(TypeTag<double>{}, DBL_TRUE_MIN);
+}
+
+MAGE_TEST_F(RangeTest, StridedPartitionsAvoidSingletonStrideOverflow) {
+  constexpr uint64_t Stride = uint64_t(1) << 63;
+  const range<uint64_t> Range(0, UINT64_MAX - 1, Stride);
+  EXPECT_STRIDED_PARTITIONING_MATCHES_RANGE(Range, 2);
+}
+
+#undef EXPECT_STRIDED_PARTITIONING_MATCHES_RANGE
+#undef EXPECT_RANGE_VALUES
 #undef EXPECT_VALUE_EQ

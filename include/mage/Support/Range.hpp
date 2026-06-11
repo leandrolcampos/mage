@@ -109,6 +109,46 @@ public:
     return mapFromOrderedUnsigned(MappedValue);
   }
 
+  /// Returns a range representing partition \p PartitionIndex of
+  /// \p NumPartitions disjoint partitions, assigning consecutive
+  /// elements of this range to consecutive partitions.
+  [[nodiscard]] constexpr range
+  stridedPartition(size_type PartitionIndex,
+                   size_type NumPartitions) const noexcept {
+    const size_type RangeSize = size();
+
+    assert((NumPartitions > 0) &&
+           "number of partitions must be greater than zero");
+    assert((NumPartitions <= RangeSize) &&
+           "number of partitions must not exceed range size");
+    assert((PartitionIndex < NumPartitions) &&
+           "partition index is out of range");
+
+    const size_type LastIndex =
+        PartitionIndex +
+        ((RangeSize - 1 - PartitionIndex) / NumPartitions) * NumPartitions;
+
+    const StorageType PartFirst =
+        static_cast<StorageType>(MappedFirst + PartitionIndex * Stride);
+    const StorageType PartLast =
+        static_cast<StorageType>(MappedFirst + LastIndex * Stride);
+
+    // A non-singleton partition contains its second element in the original
+    // range, which guarantees that Stride * NumPartitions is representable.
+    const size_type PartStride =
+        LastIndex == PartitionIndex ? Stride : Stride * NumPartitions;
+
+    if constexpr (Inclusive) {
+      return range(mapFromOrderedUnsigned(PartFirst),
+                   mapFromOrderedUnsigned(PartLast), PartStride);
+    } else {
+      return range(
+          mapFromOrderedUnsigned(PartFirst),
+          mapFromOrderedUnsigned(static_cast<StorageType>(PartLast + 1)),
+          PartStride);
+    }
+  }
+
   constexpr const_iterator begin() const noexcept {
     return const_iterator(*this, 0);
   }
