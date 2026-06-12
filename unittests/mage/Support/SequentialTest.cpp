@@ -21,7 +21,7 @@
 
 #include <stddef.h>
 
-using namespace mage::parallel;
+using namespace mage;
 
 namespace {
 

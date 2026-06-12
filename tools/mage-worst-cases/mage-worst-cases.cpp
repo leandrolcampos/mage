@@ -355,9 +355,9 @@ static void writeCsvRow(llvm::raw_ostream &Out, float Input, float Error,
     Out << '\n';
     break;
   case OutputFormat::Bits:
-    Out << llvm::format_hex(mage::numeric::bit_cast<uint32_t>(Input), 10);
+    Out << llvm::format_hex(mage::bit_cast<uint32_t>(Input), 10);
     Out << ',';
-    Out << llvm::format_hex(mage::numeric::bit_cast<uint32_t>(Error), 10);
+    Out << llvm::format_hex(mage::bit_cast<uint32_t>(Error), 10);
     Out << '\n';
     break;
   }
@@ -407,8 +407,8 @@ static bool searchWorstCases(const SearchConfig &Config) {
   }
 
   uint64_t WorstCaseCount = 0;
-  const mage::numeric::range<float> Inputs(Config.Function->Domain.Begin,
-                                           Config.Function->Domain.End);
+  const mage::range<float> Inputs(Config.Function->Domain.Begin,
+                                  Config.Function->Domain.End);
 
   for (float Value : Inputs) {
     Input.set(Value);

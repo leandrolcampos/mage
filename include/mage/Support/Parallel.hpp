@@ -19,8 +19,6 @@
 #include <stddef.h>
 
 namespace mage {
-namespace parallel {
-
 namespace detail {
 
 void parallelize(size_t NumWorkItems, llvm::function_ref<void(size_t)> Fn);
@@ -39,13 +37,12 @@ void parallelize(size_t NumWorkItems, llvm::function_ref<void(size_t)> Fn);
 /// and returns after all invocations complete.
 ///
 /// \p Fn may be invoked concurrently and in an unspecified order.
-template <typename FunctionTy>
-void parallelize(size_t NumWorkItems, FunctionTy &&Fn) {
+template <typename Function>
+void parallelize(size_t NumWorkItems, Function &&Fn) {
   detail::parallelize(NumWorkItems,
                       [&Fn](size_t WorkItemIndex) { Fn(WorkItemIndex); });
 }
 
-} // namespace parallel
 } // namespace mage
 
 #endif // MAGE_SUPPORT_PARALLEL_HPP

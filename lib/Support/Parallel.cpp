@@ -15,25 +15,22 @@
 
 #include "llvm/Support/Parallel.h"
 
-#include <assert.h>
-
 #include <algorithm>
+#include <assert.h>
 #include <atomic>
 
-using namespace mage;
+size_t mage::getThreadCount() { return llvm::parallel::getThreadCount(); }
 
-size_t parallel::getThreadCount() { return llvm::parallel::getThreadCount(); }
+unsigned mage::getThreadIndex() { return llvm::parallel::getThreadIndex(); }
 
-unsigned parallel::getThreadIndex() { return llvm::parallel::getThreadIndex(); }
-
-void parallel::detail::parallelize(size_t NumWorkItems,
-                                   llvm::function_ref<void(size_t)> Fn) {
+void mage::detail::parallelize(size_t NumWorkItems,
+                               llvm::function_ref<void(size_t)> Fn) {
   assert(Fn && "Fn must be callable");
 
   if (NumWorkItems == 0)
     return;
 
-  const size_t NumWorkers = std::min(NumWorkItems, parallel::getThreadCount());
+  const size_t NumWorkers = std::min(NumWorkItems, mage::getThreadCount());
 
   std::atomic<size_t> NextItemIndex = 0;
   auto Worker = [&] {

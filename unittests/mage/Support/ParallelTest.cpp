@@ -16,11 +16,10 @@
 
 #include "llvm/Support/Parallel.h"
 
+#include <atomic>
 #include <stddef.h>
 
-#include <atomic>
-
-using namespace mage::parallel;
+using namespace mage;
 
 MAGE_TEST(ParallelTest, DoesNotRunZeroItems) {
   bool Called = false;

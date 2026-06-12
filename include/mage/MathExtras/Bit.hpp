@@ -17,7 +17,6 @@
 #include "mage/MathExtras/TypeTraits.hpp"
 
 namespace mage {
-namespace numeric {
 
 template <typename To, typename From>
 [[nodiscard]] constexpr To
@@ -31,7 +30,6 @@ bit_cast(const From &Value) noexcept // NOLINT(readability-identifier-naming)
   return __builtin_bit_cast(To, Value);
 }
 
-} // namespace numeric
 } // namespace mage
 
 #endif // MAGE_MATHEXTRAS_BIT_HPP

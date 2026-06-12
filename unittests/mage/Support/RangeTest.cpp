@@ -23,7 +23,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-using namespace mage::numeric;
+using namespace mage;
 
 using mage::testing::Test;
 using mage::testing::TestCond;

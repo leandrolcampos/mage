@@ -16,8 +16,8 @@
 
 #include "mage/MathExtras/TypeTraits.hpp"
 
-using namespace mage::numeric;
+using namespace mage;
 
-static_assert(is_same_v<mage::float16, _Float16>, "float16 aliases _Float16");
+static_assert(is_same_v<float16, _Float16>, "float16 aliases _Float16");
 
 MAGE_TEST(FloatTypesTest, CompileTimeChecks) {}

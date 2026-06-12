@@ -22,15 +22,13 @@
 #include <stdint.h>
 
 namespace mage {
-namespace numeric {
 
 template <typename T, bool Inclusive = true>
 class [[nodiscard]] range // NOLINT(readability-identifier-naming)
 {
   static_assert(is_same_v<T, remove_cv_t<T>>,
                 "T must not be const nor volatile");
-  static_assert(is_integral_v<T> || is_floating_point_v<T>,
-                "T must be an integral or floating-point type");
+  static_assert(is_arithmetic_v<T>, "T must be an arithmetic type");
   static_assert(!is_same_v<remove_cv_t<T>, bool>, "T must not be bool");
   static_assert(sizeof(T) <= sizeof(uint64_t),
                 "T must be no wider than uint64_t");
@@ -199,7 +197,6 @@ private:
   size_type Stride;
 };
 
-} // namespace numeric
 } // namespace mage
 
 #endif // MAGE_SUPPORT_RANGE_HPP
