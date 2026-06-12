@@ -16,16 +16,49 @@
 
 #include <stdint.h>
 
-using namespace mage::numeric;
+using namespace mage;
 
 struct UnsupportedType;
 
+namespace {
+
+enum UnscopedEnum { UnscopedValue };
+enum class SignedEnum : signed char { Value = -1 };
+enum class UnsignedEnum : unsigned long long { Value = 1 };
+
+} // namespace
+
+template <typename T, enable_if_t<is_same_v<T, int>, int> = 0>
+static constexpr bool isSelectedByEnableIf(T) {
+  return true;
+}
+
+template <typename T, enable_if_t<!is_same_v<T, int>, int> = 0>
+static constexpr bool isSelectedByEnableIf(T) {
+  return false;
+}
+
 //===----------------------------------------------------------------------===//
-// Basic boolean and type utilities
+// Basic type utilities
 //===----------------------------------------------------------------------===//
 
 static_assert(true_type::value, "true_type stores true");
 static_assert(!false_type::value, "false_type stores false");
+
+static_assert(!dependent_false_v<int>, "dependent_false_v is false for int");
+static_assert(!dependent_false_v<UnsupportedType>,
+              "dependent_false_v is false for unsupported types");
+
+static_assert(__is_same(typename enable_if<true, int>::type, int),
+              "enable_if exposes its selected type when true");
+static_assert(__is_same(enable_if_t<true, unsigned int>, unsigned int),
+              "enable_if_t aliases its selected type when true");
+static_assert(__is_same(enable_if_t<true>, void),
+              "enable_if_t defaults its selected type to void");
+static_assert(isSelectedByEnableIf(0),
+              "enable_if preserves an overload when true");
+static_assert(!isSelectedByEnableIf(0.0),
+              "enable_if removes an overload when false");
 
 static_assert(__is_same(type_identity_t<int>, int),
               "type_identity_t preserves int");
@@ -148,6 +181,36 @@ static_assert(!is_floating_point_v<unsigned long long>,
 static_assert(!is_floating_point_v<UnsupportedType>,
               "unsupported type is not floating point");
 
+static_assert(is_arithmetic_v<bool>, "bool is arithmetic");
+static_assert(is_arithmetic_v<int>, "int is arithmetic");
+static_assert(is_arithmetic_v<unsigned long long>,
+              "unsigned long long is arithmetic");
+static_assert(is_arithmetic_v<_Float16>, "_Float16 is arithmetic");
+static_assert(is_arithmetic_v<float>, "float is arithmetic");
+static_assert(is_arithmetic_v<double>, "double is arithmetic");
+static_assert(is_arithmetic_v<const volatile int>,
+              "cv-qualified int is arithmetic");
+static_assert(is_arithmetic_v<const volatile double>,
+              "cv-qualified double is arithmetic");
+
+static_assert(!is_arithmetic_v<long double>,
+              "long double is outside Mage arithmetic support");
+static_assert(!is_arithmetic_v<UnsupportedType>,
+              "unsupported type is not arithmetic");
+
+static_assert(is_arithmetic<int>::value == is_arithmetic_v<int>);
+
+static_assert(is_enum_v<UnscopedEnum>, "unscoped enum is an enum");
+static_assert(is_enum_v<SignedEnum>, "scoped signed enum is an enum");
+static_assert(is_enum_v<UnsignedEnum>, "scoped unsigned enum is an enum");
+static_assert(is_enum_v<const volatile SignedEnum>,
+              "cv-qualified enum is an enum");
+
+static_assert(!is_enum_v<int>, "int is not an enum");
+static_assert(!is_enum_v<UnsupportedType>, "unsupported type is not an enum");
+
+static_assert(is_enum<SignedEnum>::value == is_enum_v<SignedEnum>);
+
 static_assert(is_signed_v<signed char>, "signed char is signed");
 static_assert(is_signed_v<short>, "short is signed");
 static_assert(is_signed_v<int>, "int is signed");
@@ -226,6 +289,14 @@ static_assert(is_trivially_copyable<int>::value ==
 //===----------------------------------------------------------------------===//
 // Type transformations
 //===----------------------------------------------------------------------===//
+
+static_assert(__is_same(underlying_type_t<UnscopedEnum>,
+                        __underlying_type(UnscopedEnum)),
+              "underlying_type_t exposes an unscoped enum's underlying type");
+static_assert(__is_same(underlying_type_t<SignedEnum>, signed char),
+              "underlying_type_t preserves signed enum underlying type");
+static_assert(__is_same(underlying_type_t<UnsignedEnum>, unsigned long long),
+              "underlying_type_t preserves unsigned enum underlying type");
 
 static_assert(__is_same(make_unsigned_t<char>, unsigned char),
               "make_unsigned_t maps char to unsigned char");

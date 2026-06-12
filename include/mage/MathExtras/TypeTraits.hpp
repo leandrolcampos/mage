@@ -26,10 +26,9 @@
 #include <stdint.h>
 
 namespace mage {
-namespace numeric {
 
 //===----------------------------------------------------------------------===//
-// Basic boolean and type utilities
+// Basic type utilities
 //===----------------------------------------------------------------------===//
 
 namespace detail {
@@ -50,6 +49,17 @@ template <bool B> using bool_constant = integral_constant<bool, B>;
 
 using true_type = detail::bool_constant<true>;
 using false_type = detail::bool_constant<false>;
+
+template <typename> inline constexpr bool dependent_false_v = false;
+
+template <bool B, typename T = void> struct enable_if {};
+
+template <typename T> struct enable_if<true, T> {
+  using type = T;
+};
+
+template <bool B, typename T = void>
+using enable_if_t = typename enable_if<B, T>::type;
 
 template <typename T> struct type_identity {
   using type = T;
@@ -159,18 +169,27 @@ struct is_floating_point : detail::is_floating_point_impl<remove_cv_t<T>> {};
 template <typename T>
 inline constexpr bool is_floating_point_v = is_floating_point<T>::value;
 
+template <typename T>
+struct is_arithmetic
+    : detail::bool_constant<is_integral_v<T> || is_floating_point_v<T>> {};
+
+template <typename T>
+inline constexpr bool is_arithmetic_v = is_arithmetic<T>::value;
+
+template <typename T> struct is_enum : detail::bool_constant<__is_enum(T)> {};
+
+template <typename T> inline constexpr bool is_enum_v = is_enum<T>::value;
+
 namespace detail {
 
-template <typename T,
-          bool IsArithmetic = is_integral_v<T> || is_floating_point_v<T>>
+template <typename T, bool IsArithmetic = is_arithmetic_v<T>>
 struct is_signed_impl : false_type {};
 
 template <typename T>
 struct is_signed_impl<T, true>
     : bool_constant<(static_cast<T>(-1) < static_cast<T>(0))> {};
 
-template <typename T,
-          bool IsArithmetic = is_integral_v<T> || is_floating_point_v<T>>
+template <typename T, bool IsArithmetic = is_arithmetic_v<T>>
 struct is_unsigned_impl : false_type {};
 
 template <typename T>
@@ -204,6 +223,15 @@ inline constexpr bool is_trivially_copyable_v = is_trivially_copyable<T>::value;
 //===----------------------------------------------------------------------===//
 // Type transformations
 //===----------------------------------------------------------------------===//
+
+template <typename T, bool IsEnum = is_enum_v<T>> struct underlying_type {};
+
+template <typename T> struct underlying_type<T, true> {
+  using type = __underlying_type(T);
+};
+
+template <typename T>
+using underlying_type_t = typename underlying_type<T>::type;
 
 namespace detail {
 
@@ -289,8 +317,6 @@ template <> struct fp_storage_type<double> {
 template <typename T>
 using fp_storage_type_t = typename fp_storage_type<T>::type;
 
-template <typename> inline constexpr bool dependent_false_v = false;
-
 } // namespace detail
 
 template <typename T> class storage_type {
@@ -303,7 +329,7 @@ private:
     else if constexpr (is_signed_v<T>)
       return type_identity<make_unsigned_t<remove_cv_t<T>>>{};
     else
-      static_assert(detail::dependent_false_v<T>, "unsupported type");
+      static_assert(dependent_false_v<T>, "unsupported type");
   }
 
 public:
@@ -312,7 +338,6 @@ public:
 
 template <typename T> using storage_type_t = typename storage_type<T>::type;
 
-} // namespace numeric
 } // namespace mage
 
 #endif // MAGE_MATHEXTRAS_TYPETRAITS_HPP
