@@ -1,0 +1,9 @@
+add_mage_unittest(
+  MpfrFloatTest
+  SRCS
+    MpfrFloatTest.cpp
+  BUILDS
+    HOST
+  LINK_LIBRARIES
+    MageTesting
+)
