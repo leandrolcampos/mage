@@ -19,12 +19,16 @@
 
 #include "UnitTest/Test.hpp"
 
-namespace mage {
-namespace testing {
+using namespace mage;
 
-TestLogger &detail::operator<<(TestLogger &Logger, detail::Location Loc) {
+testing::TestLogger &
+testing::detail::operator<<(testing::TestLogger &Logger,
+                            testing::detail::Location Loc) {
   return Logger << Loc.File << ':' << Loc.Line << ": FAILURE\n";
 }
+
+namespace mage {
+namespace testing {
 
 Test::~Test() = default;
 

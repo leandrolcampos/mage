@@ -103,7 +103,6 @@ bool evaluate(const LHSType &LHS, const RHSType &RHS) {
   if constexpr (Cond == TestCond::GE)
     return LHS >= RHS;
 
-  // TODO: Use MAGE_UNREACHABLE once available.
   __builtin_unreachable();
 }
 
@@ -116,7 +115,6 @@ bool evaluateCString(const char *LHS, const char *RHS) {
   if constexpr (Cond == TestCond::NE)
     return !Equal;
 
-  // TODO: Use MAGE_UNREACHABLE once available.
   __builtin_unreachable();
 }
 
