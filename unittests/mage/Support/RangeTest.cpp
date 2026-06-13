@@ -62,7 +62,7 @@ template <typename T> static constexpr T getPreviousPositiveValue(T Value) {
 }
 
 template <typename T> static const char *getTypeName() {
-  if constexpr (is_same_v<T, mage::float16>)
+  if constexpr (is_same_v<T, float16>)
     return "float16";
   else if constexpr (is_same_v<T, float>)
     return "float";
@@ -298,7 +298,7 @@ MAGE_TEST_F(RangeTest, ProducesExpectedFloatingPointValues) {
   };
 
   // TODO: Use FPInfo to get machine limits for floating point types.
-  ExpectType(TypeTag<mage::float16>{}, __FLT16_DENORM_MIN__);
+  ExpectType(TypeTag<float16>{}, __FLT16_DENORM_MIN__);
   ExpectType(TypeTag<float>{}, FLT_TRUE_MIN);
   ExpectType(TypeTag<double>{}, DBL_TRUE_MIN);
 }
@@ -340,7 +340,7 @@ MAGE_TEST_F(RangeTest, SupportsFiniteFloatingPointDomains) {
                     PreviousMax);
   };
 
-  ExpectType(TypeTag<mage::float16>{}, __FLT16_MAX__);
+  ExpectType(TypeTag<float16>{}, __FLT16_MAX__);
   ExpectType(TypeTag<float>{}, FLT_MAX);
   ExpectType(TypeTag<double>{}, DBL_MAX);
 }
@@ -530,7 +530,7 @@ MAGE_TEST_F(RangeTest, StridedPartitionsPreserveFloatingPointOrdering) {
     EXPECT_STRIDED_PARTITIONING_MATCHES_RANGE(Range, 3);
   };
 
-  ExpectType(TypeTag<mage::float16>{}, __FLT16_DENORM_MIN__);
+  ExpectType(TypeTag<float16>{}, __FLT16_DENORM_MIN__);
   ExpectType(TypeTag<float>{}, FLT_TRUE_MIN);
   ExpectType(TypeTag<double>{}, DBL_TRUE_MIN);
 }

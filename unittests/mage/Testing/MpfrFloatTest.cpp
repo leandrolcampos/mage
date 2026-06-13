@@ -63,7 +63,7 @@ MAGE_TEST(MpfrFloatTest, InitializesWithRequestedConfiguration) {
 MAGE_TEST(MpfrFloatTest, SetsSupportedArithmeticTypes) {
   mpfr::MpfrFloat Value(128, RoundingMode::NearestTiesToEven);
 
-  Value.set(mage::float16(1.5));
+  Value.set(float16(1.5));
   MAGE_EXPECT_EQ(mpfr_cmp_d(*Value, 1.5), 0);
 
   Value.set(-2.25f);
