@@ -77,25 +77,25 @@ public:
   MpfrFloat &operator=(MpfrFloat &&) = delete;
 
   template <typename T, enable_if_t<is_floating_point_v<T>, int> = 0>
-  void set(T Input) noexcept {
+  int set(T Input) noexcept {
     using FloatType = remove_cv_t<T>;
 
     if constexpr (is_same_v<FloatType, float16>)
-      mpfr_set_flt(Value, static_cast<float>(Input), MpfrRounding);
+      return mpfr_set_flt(Value, static_cast<float>(Input), MpfrRounding);
     else if constexpr (is_same_v<FloatType, float>)
-      mpfr_set_flt(Value, Input, MpfrRounding);
+      return mpfr_set_flt(Value, Input, MpfrRounding);
     else if constexpr (is_same_v<FloatType, double>)
-      mpfr_set_d(Value, Input, MpfrRounding);
+      return mpfr_set_d(Value, Input, MpfrRounding);
     else
       static_assert(dependent_false_v<T>, "unsupported floating-point type");
   }
 
   template <typename T, enable_if_t<is_integral_v<T>, int> = 0>
-  void set(T Input) noexcept {
+  int set(T Input) noexcept {
     if constexpr (is_signed_v<T>)
-      mpfr_set_sj(Value, static_cast<intmax_t>(Input), MpfrRounding);
+      return mpfr_set_sj(Value, static_cast<intmax_t>(Input), MpfrRounding);
     else
-      mpfr_set_uj(Value, static_cast<uintmax_t>(Input), MpfrRounding);
+      return mpfr_set_uj(Value, static_cast<uintmax_t>(Input), MpfrRounding);
   }
 
   template <typename T,

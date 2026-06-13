@@ -63,25 +63,25 @@ MAGE_TEST(MpfrFloatTest, InitializesWithRequestedConfiguration) {
 MAGE_TEST(MpfrFloatTest, SetsSupportedArithmeticTypes) {
   mpfr::MpfrFloat Value(128, RoundingMode::NearestTiesToEven);
 
-  Value.set(float16(1.5));
+  MAGE_EXPECT_EQ(Value.set(float16(1.5)), 0);
   MAGE_EXPECT_EQ(mpfr_cmp_d(*Value, 1.5), 0);
 
-  Value.set(-2.25f);
+  MAGE_EXPECT_EQ(Value.set(-2.25f), 0);
   MAGE_EXPECT_EQ(mpfr_cmp_d(*Value, -2.25), 0);
 
-  Value.set(3.5);
+  MAGE_EXPECT_EQ(Value.set(3.5), 0);
   MAGE_EXPECT_EQ(mpfr_cmp_d(*Value, 3.5), 0);
 
-  Value.set(-42);
+  MAGE_EXPECT_EQ(Value.set(-42), 0);
   MAGE_EXPECT_EQ(mpfr_cmp_si(*Value, -42), 0);
 
-  Value.set(uint64_t(123));
+  MAGE_EXPECT_EQ(Value.set(uint64_t(123)), 0);
   MAGE_EXPECT_EQ(mpfr_cmp_ui(*Value, 123), 0);
 
-  Value.set(false);
+  MAGE_EXPECT_EQ(Value.set(false), 0);
   MAGE_EXPECT_TRUE(mpfr_zero_p(*Value) != 0);
 
-  Value.set(true);
+  MAGE_EXPECT_EQ(Value.set(true), 0);
   MAGE_EXPECT_EQ(mpfr_cmp_ui(*Value, 1), 0);
 }
 
@@ -91,10 +91,10 @@ MAGE_TEST(MpfrFloatTest, RoundsInputAccordingToConfiguredMode) {
   mpfr::MpfrFloat Upward(2, RoundingMode::Upward);
   mpfr::MpfrFloat TowardZero(2, RoundingMode::TowardZero);
 
-  Nearest.set(1.25);
-  Downward.set(-1.25);
-  Upward.set(1.25);
-  TowardZero.set(-1.25);
+  MAGE_EXPECT_TRUE(Nearest.set(1.25) < 0);
+  MAGE_EXPECT_TRUE(Downward.set(-1.25) < 0);
+  MAGE_EXPECT_TRUE(Upward.set(1.25) > 0);
+  MAGE_EXPECT_TRUE(TowardZero.set(-1.25) > 0);
 
   MAGE_EXPECT_EQ(Nearest.convertTo<double>(), 1.0);
   MAGE_EXPECT_EQ(Downward.convertTo<double>(), -1.5);
