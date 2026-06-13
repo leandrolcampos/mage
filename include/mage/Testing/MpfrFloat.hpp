@@ -14,6 +14,12 @@
 #ifndef MAGE_TESTING_MPFRFLOAT_HPP
 #define MAGE_TESTING_MPFRFLOAT_HPP
 
+#include "mage/Config/Target.hpp"
+
+#if MAGE_TARGET_ARCH_IS_GPU
+#error "this header is only available for host targets"
+#endif
+
 #include "mage/Support/FloatTypes.hpp"
 #include "mage/Support/TypeTraits.hpp"
 

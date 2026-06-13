@@ -14,6 +14,12 @@
 #ifndef MAGE_SUPPORT_PARALLEL_HPP
 #define MAGE_SUPPORT_PARALLEL_HPP
 
+#include "mage/Config/Target.hpp"
+
+#if MAGE_TARGET_ARCH_IS_GPU
+#error "this header is only available for host targets"
+#endif
+
 #include "llvm/ADT/STLFunctionalExtras.h"
 
 #include <stddef.h>
