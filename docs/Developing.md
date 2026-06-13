@@ -23,18 +23,22 @@ mage/
 ├── docs/               # Documentation, proposals, design notes, and roadmap
 ├── experiments/        # Scripts and executables for research experiments
 ├── include/            # Public headers
-│   └── mage/           # Public Mage library interfaces
+│   └── mage/           # Public Mage library layers and component interfaces
 │       ├── Benchmark/  # APIs for GPU performance measurement
 │       ├── GPU/        # Low-level GPU execution primitives (warp/group ops)
-│       ├── Math/       # Elementary math functions
+│       ├── Math/       # Elementary functions and reusable numerical algorithms
 │       ├── Offload/    # APIs for managing host-device interaction
-│       ├── Support/    # General utilities and abstract data types
-│       └── Testing/    # APIs for GPU accuracy measurement and differential testing
-├── lib/                # Mage library implementations (mirrors include/mage/)
+│       ├── Support/    # Fundamental types, data structures, and general utilities
+│       └── Testing/    # Accuracy and differential-testing infrastructure
+├── lib/                # Component implementation files, organized by library layer
 ├── test/               # Executables for accuracy measurement and differential testing
 ├── tools/              # Command-line tools
 └── unittests/          # Unit tests for Mage components
 ````
+
+Mage public APIs are organized into library layers. Each top-level directory under `include/mage` defines a layer composed of cohesive components and establishes an architectural dependency boundary.
+
+Component availability is independent of layer organization: individual components may support host builds, GPU builds, or both. Build targets describe how component implementations are compiled and optionally aggregated into library artifacts.
 
 ## Documentation Conventions
 
