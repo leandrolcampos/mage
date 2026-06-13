@@ -11,10 +11,10 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "mage/MathExtras/Bit.hpp"
+#include "mage/Support/Bit.hpp"
 #include "UnitTest/Test.hpp"
 
-#include "mage/MathExtras/FloatTypes.hpp"
+#include "mage/Support/FloatTypes.hpp"
 
 #include <stdint.h>
 

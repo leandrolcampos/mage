@@ -14,7 +14,7 @@
 #include "mage/Testing/MpfrFloat.hpp"
 #include "UnitTest/Test.hpp"
 
-#include "mage/MathExtras/TypeTraits.hpp"
+#include "mage/Support/TypeTraits.hpp"
 
 #include <stdint.h>
 #include <utility>

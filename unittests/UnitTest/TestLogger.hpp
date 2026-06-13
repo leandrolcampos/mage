@@ -14,7 +14,7 @@
 #ifndef MAGE_UNITTESTS_UNITTEST_TESTLOGGER_HPP
 #define MAGE_UNITTESTS_UNITTEST_TESTLOGGER_HPP
 
-#include "mage/MathExtras/TypeTraits.hpp"
+#include "mage/Support/TypeTraits.hpp"
 
 namespace mage {
 namespace testing {

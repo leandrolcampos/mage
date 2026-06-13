@@ -174,7 +174,7 @@ function(mage_resolve_current_build_context)
   set(MAGE_TARGET_ARCH_IS_NVPTX "${target_arch_is_nvptx}" CACHE INTERNAL
     "Whether the current Mage compilation target is NVPTX" FORCE)
   set(MAGE_GPU_TARGET_ARCHITECTURE "${gpu_target_architecture}" CACHE INTERNAL
-    "GPU architecture passed to the compiler for the current Mage build" FORCE)
+    "GPU architecture for the current Mage build" FORCE)
 endfunction()
 
 # Adds a GPU build rooted at build/<gpu_target_triple> and exposes convenience

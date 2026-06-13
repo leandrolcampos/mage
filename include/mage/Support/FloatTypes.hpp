@@ -11,8 +11,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef MAGE_MATHEXTRAS_FLOATTYPES_HPP
-#define MAGE_MATHEXTRAS_FLOATTYPES_HPP
+#ifndef MAGE_SUPPORT_FLOATTYPES_HPP
+#define MAGE_SUPPORT_FLOATTYPES_HPP
 
 namespace mage {
 
@@ -21,4 +21,4 @@ using float16 = _Float16;
 
 } // namespace mage
 
-#endif // MAGE_MATHEXTRAS_FLOATTYPES_HPP
+#endif // MAGE_SUPPORT_FLOATTYPES_HPP

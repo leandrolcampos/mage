@@ -15,9 +15,9 @@
 #include "UnitTest/Test.hpp"
 #include "UnitTest/TestLogger.hpp"
 
-#include "mage/MathExtras/Bit.hpp"
-#include "mage/MathExtras/FloatTypes.hpp"
-#include "mage/MathExtras/TypeTraits.hpp"
+#include "mage/Support/Bit.hpp"
+#include "mage/Support/FloatTypes.hpp"
+#include "mage/Support/TypeTraits.hpp"
 
 #include <float.h>
 #include <stddef.h>

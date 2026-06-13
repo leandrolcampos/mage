@@ -11,10 +11,10 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef MAGE_MATHEXTRAS_BIT_HPP
-#define MAGE_MATHEXTRAS_BIT_HPP
+#ifndef MAGE_SUPPORT_BIT_HPP
+#define MAGE_SUPPORT_BIT_HPP
 
-#include "mage/MathExtras/TypeTraits.hpp"
+#include "mage/Support/TypeTraits.hpp"
 
 namespace mage {
 
@@ -32,4 +32,4 @@ bit_cast(const From &Value) noexcept // NOLINT(readability-identifier-naming)
 
 } // namespace mage
 
-#endif // MAGE_MATHEXTRAS_BIT_HPP
+#endif // MAGE_SUPPORT_BIT_HPP

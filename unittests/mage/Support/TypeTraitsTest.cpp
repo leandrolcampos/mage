@@ -11,7 +11,7 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "mage/MathExtras/TypeTraits.hpp"
+#include "mage/Support/TypeTraits.hpp"
 #include "UnitTest/Test.hpp"
 
 #include <stdint.h>

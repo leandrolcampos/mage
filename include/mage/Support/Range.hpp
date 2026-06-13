@@ -14,8 +14,8 @@
 #ifndef MAGE_SUPPORT_RANGE_HPP
 #define MAGE_SUPPORT_RANGE_HPP
 
-#include "mage/MathExtras/Bit.hpp"
-#include "mage/MathExtras/TypeTraits.hpp"
+#include "mage/Support/Bit.hpp"
+#include "mage/Support/TypeTraits.hpp"
 
 #include <assert.h>
 #include <limits.h>

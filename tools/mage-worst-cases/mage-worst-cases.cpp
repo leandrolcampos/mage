@@ -11,7 +11,7 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "mage/MathExtras/Bit.hpp"
+#include "mage/Support/Bit.hpp"
 #include "mage/Support/Range.hpp"
 
 #include "llvm/ADT/SmallString.h"

@@ -11,10 +11,10 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "mage/MathExtras/FloatTypes.hpp"
+#include "mage/Support/FloatTypes.hpp"
 #include "UnitTest/Test.hpp"
 
-#include "mage/MathExtras/TypeTraits.hpp"
+#include "mage/Support/TypeTraits.hpp"
 
 using namespace mage;
 

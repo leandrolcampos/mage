@@ -18,10 +18,10 @@
 
 // NOLINTBEGIN(readability-identifier-naming)
 
-#ifndef MAGE_MATHEXTRAS_TYPETRAITS_HPP
-#define MAGE_MATHEXTRAS_TYPETRAITS_HPP
+#ifndef MAGE_SUPPORT_TYPETRAITS_HPP
+#define MAGE_SUPPORT_TYPETRAITS_HPP
 
-#include "mage/MathExtras/FloatTypes.hpp"
+#include "mage/Support/FloatTypes.hpp"
 
 #include <stdint.h>
 
@@ -340,6 +340,6 @@ template <typename T> using storage_type_t = typename storage_type<T>::type;
 
 } // namespace mage
 
-#endif // MAGE_MATHEXTRAS_TYPETRAITS_HPP
+#endif // MAGE_SUPPORT_TYPETRAITS_HPP
 
 // NOLINTEND(readability-identifier-naming)

@@ -1,4 +1,22 @@
 add_mage_unittest(
+  BitTest
+  SRCS
+    BitTest.cpp
+  BUILD_KINDS
+    HOST
+    GPU
+)
+
+add_mage_unittest(
+  FloatTypesTest
+  SRCS
+    FloatTypesTest.cpp
+  BUILD_KINDS
+    HOST
+    GPU
+)
+
+add_mage_unittest(
   ParallelTest
   SRCS
     ParallelTest.cpp
@@ -7,6 +25,15 @@ add_mage_unittest(
   LINK_LIBRARIES
     MageSupport
     Mage::LLVMSupport
+)
+
+add_mage_unittest(
+  RangeTest
+  SRCS
+    RangeTest.cpp
+  BUILD_KINDS
+    HOST
+    GPU
 )
 
 add_mage_unittest(
@@ -21,9 +48,9 @@ add_mage_unittest(
 )
 
 add_mage_unittest(
-  RangeTest
+  TypeTraitsTest
   SRCS
-    RangeTest.cpp
+    TypeTraitsTest.cpp
   BUILD_KINDS
     HOST
     GPU

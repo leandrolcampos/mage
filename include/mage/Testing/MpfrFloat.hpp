@@ -14,8 +14,8 @@
 #ifndef MAGE_TESTING_MPFRFLOAT_HPP
 #define MAGE_TESTING_MPFRFLOAT_HPP
 
-#include "mage/MathExtras/FloatTypes.hpp"
-#include "mage/MathExtras/TypeTraits.hpp"
+#include "mage/Support/FloatTypes.hpp"
+#include "mage/Support/TypeTraits.hpp"
 
 // MPFR exposes its intmax_t APIs only after <stdint.h> has been included.
 #include <stdint.h>
