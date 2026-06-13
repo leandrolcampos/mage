@@ -220,9 +220,9 @@ endfunction()
 # ------------------------------------------------------------------------------
 
 # Resolves the GPU architecture used by GPU link-option helpers.
-function(_mage_get_resolved_gpu_architecture out_var)
-  if(NOT "${MAGE_GPU_ARCHITECTURE}" STREQUAL "")
-    set(${out_var} "${MAGE_GPU_ARCHITECTURE}" PARENT_SCOPE)
+function(_mage_get_resolved_gpu_target_architecture out_var)
+  if(NOT "${MAGE_GPU_TARGET_ARCHITECTURE}" STREQUAL "")
+    set(${out_var} "${MAGE_GPU_TARGET_ARCHITECTURE}" PARENT_SCOPE)
     return()
   endif()
 
@@ -235,8 +235,8 @@ function(_mage_get_resolved_gpu_architecture out_var)
   endif()
 
   message(FATAL_ERROR
-    "unsupported GPU target triple in _mage_get_resolved_gpu_architecture: "
-    "${MAGE_TARGET_TRIPLE}")
+    "unsupported GPU target triple in "
+    "_mage_get_resolved_gpu_target_architecture: ${MAGE_TARGET_TRIPLE}")
 endfunction()
 
 function(_mage_get_common_link_options out_var)
@@ -263,11 +263,11 @@ function(_mage_get_common_link_options out_var)
       list(APPEND link_options -startfiles)
     endif()
 
-    _mage_get_resolved_gpu_architecture(gpu_architecture)
+    _mage_get_resolved_gpu_target_architecture(gpu_target_architecture)
     if(MAGE_TARGET_ARCH_IS_AMDGPU)
-      list(APPEND link_options -mcpu=${gpu_architecture})
+      list(APPEND link_options -mcpu=${gpu_target_architecture})
     elseif(MAGE_TARGET_ARCH_IS_NVPTX)
-      list(APPEND link_options -march=${gpu_architecture})
+      list(APPEND link_options -march=${gpu_target_architecture})
     else()
       message(FATAL_ERROR
         "unsupported GPU target triple in _mage_get_common_link_options: "
@@ -288,12 +288,12 @@ function(_mage_get_common_bitcode_link_options out_var)
   if(MAGE_BUILD_KIND STREQUAL "GPU")
     list(APPEND link_options --target=${MAGE_TARGET_TRIPLE})
 
-    _mage_get_resolved_gpu_architecture(gpu_architecture)
+    _mage_get_resolved_gpu_target_architecture(gpu_target_architecture)
 
     if(MAGE_TARGET_ARCH_IS_AMDGPU)
-      list(APPEND link_options -mcpu=${gpu_architecture})
+      list(APPEND link_options -mcpu=${gpu_target_architecture})
     elseif(MAGE_TARGET_ARCH_IS_NVPTX)
-      list(APPEND link_options -march=${gpu_architecture})
+      list(APPEND link_options -march=${gpu_target_architecture})
     else()
       message(FATAL_ERROR
         "unsupported GPU target triple in "

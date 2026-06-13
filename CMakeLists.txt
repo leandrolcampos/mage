@@ -33,9 +33,9 @@ set(MAGE_GPU_TARGET_TRIPLES
   "Semicolon-separated GPU target triples to build. May be empty")
 
 set(MAGE_FORCE_AMDGPU_ARCHITECTURE "" CACHE STRING
-  "Force building of AMDGPU device code with the given architecture")
+  "AMDGPU architecture to use instead of automatic detection")
 set(MAGE_FORCE_NVPTX_ARCHITECTURE "" CACHE STRING
-  "Force building of NVPTX device code with the given architecture")
+  "NVPTX architecture to use instead of automatic detection")
 
 set(MAGE_GPU_TEST_PARALLELISM "1" CACHE STRING
   "Maximum number of GPU unit tests to run in parallel")

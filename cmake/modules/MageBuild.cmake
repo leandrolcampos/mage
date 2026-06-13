@@ -85,7 +85,7 @@ function(_mage_get_cxx_compiler_target_triple out_var)
 endfunction()
 
 # Checks whether the host toolchain can resolve a native GPU architecture.
-function(_mage_check_native_gpu_arch_support out_var gpu_target_triple)
+function(_mage_check_native_gpu_architecture_support out_var gpu_target_triple)
   set(old_try_compile_target_type "${CMAKE_TRY_COMPILE_TARGET_TYPE}")
   set(old_required_flags "${CMAKE_REQUIRED_FLAGS}")
 
@@ -103,8 +103,8 @@ function(_mage_check_native_gpu_arch_support out_var gpu_target_triple)
     set(${out_var} "${MAGE_CHECK_NVPTX_MARCH_NATIVE}" PARENT_SCOPE)
   else()
     message(FATAL_ERROR
-      "unsupported GPU target triple in _mage_check_native_gpu_arch_support: "
-      "${gpu_target_triple}")
+      "unsupported GPU target triple in "
+      "_mage_check_native_gpu_architecture_support: ${gpu_target_triple}")
   endif()
 
   set(CMAKE_REQUIRED_FLAGS "${old_required_flags}")
@@ -117,7 +117,7 @@ function(mage_resolve_current_build_context)
   set(build_kind HOST)
   set(target_arch_is_amdgpu OFF)
   set(target_arch_is_nvptx OFF)
-  set(gpu_architecture "")
+  set(gpu_target_architecture "")
 
   if(NOT MAGE_INTERNAL_GPU_BUILD)
     _mage_get_cxx_compiler_target_triple(target_triple)
@@ -129,13 +129,13 @@ function(mage_resolve_current_build_context)
     set(target_triple "${MAGE_INTERNAL_TARGET_TRIPLE}")
     set(build_kind GPU)
     set(target_arch_is_amdgpu ON)
-    _mage_check_native_gpu_arch_support(
+    _mage_check_native_gpu_architecture_support(
       host_can_resolve_gpu_native_arch "amdgcn-amd-amdhsa")
 
     if(NOT MAGE_FORCE_AMDGPU_ARCHITECTURE STREQUAL "")
-      set(gpu_architecture "${MAGE_FORCE_AMDGPU_ARCHITECTURE}")
+      set(gpu_target_architecture "${MAGE_FORCE_AMDGPU_ARCHITECTURE}")
     elseif(host_can_resolve_gpu_native_arch)
-      set(gpu_architecture "native")
+      set(gpu_target_architecture "native")
     else()
       message(FATAL_ERROR
         "cannot configure the AMDGPU build because no GPU architecture was "
@@ -146,13 +146,13 @@ function(mage_resolve_current_build_context)
     set(target_triple "${MAGE_INTERNAL_TARGET_TRIPLE}")
     set(build_kind GPU)
     set(target_arch_is_nvptx ON)
-    _mage_check_native_gpu_arch_support(
+    _mage_check_native_gpu_architecture_support(
       host_can_resolve_gpu_native_arch "nvptx64-nvidia-cuda")
 
     if(NOT MAGE_FORCE_NVPTX_ARCHITECTURE STREQUAL "")
-      set(gpu_architecture "${MAGE_FORCE_NVPTX_ARCHITECTURE}")
+      set(gpu_target_architecture "${MAGE_FORCE_NVPTX_ARCHITECTURE}")
     elseif(host_can_resolve_gpu_native_arch)
-      set(gpu_architecture "native")
+      set(gpu_target_architecture "native")
     else()
       message(FATAL_ERROR
         "cannot configure the NVPTX build because no GPU architecture was "
@@ -173,8 +173,8 @@ function(mage_resolve_current_build_context)
     "Whether the current Mage compilation target is AMDGPU" FORCE)
   set(MAGE_TARGET_ARCH_IS_NVPTX "${target_arch_is_nvptx}" CACHE INTERNAL
     "Whether the current Mage compilation target is NVPTX" FORCE)
-  set(MAGE_GPU_ARCHITECTURE "${gpu_architecture}" CACHE INTERNAL
-    "GPU architecture for the current Mage build" FORCE)
+  set(MAGE_GPU_TARGET_ARCHITECTURE "${gpu_target_architecture}" CACHE INTERNAL
+    "GPU architecture passed to the compiler for the current Mage build" FORCE)
 endfunction()
 
 # Adds a GPU build rooted at build/<gpu_target_triple> and exposes convenience
@@ -194,16 +194,16 @@ function(mage_add_gpu_build gpu_target_triple)
 
   if(gpu_target_triple STREQUAL "amdgcn-amd-amdhsa" AND
      MAGE_FORCE_AMDGPU_ARCHITECTURE)
-    set(gpu_architecture "${MAGE_FORCE_AMDGPU_ARCHITECTURE}")
+    set(gpu_target_architecture "${MAGE_FORCE_AMDGPU_ARCHITECTURE}")
 
     list(APPEND gpu_build_cmake_args
-      "-DMAGE_FORCE_AMDGPU_ARCHITECTURE:STRING=${gpu_architecture}")
+      "-DMAGE_FORCE_AMDGPU_ARCHITECTURE:STRING=${gpu_target_architecture}")
   elseif(gpu_target_triple STREQUAL "nvptx64-nvidia-cuda" AND
          MAGE_FORCE_NVPTX_ARCHITECTURE)
-    set(gpu_architecture "${MAGE_FORCE_NVPTX_ARCHITECTURE}")
+    set(gpu_target_architecture "${MAGE_FORCE_NVPTX_ARCHITECTURE}")
 
     list(APPEND gpu_build_cmake_args
-      "-DMAGE_FORCE_NVPTX_ARCHITECTURE:STRING=${gpu_architecture}")
+      "-DMAGE_FORCE_NVPTX_ARCHITECTURE:STRING=${gpu_target_architecture}")
   endif()
 
   if(BUILD_TESTING)
