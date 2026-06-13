@@ -49,8 +49,6 @@ function(add_mage_unittest_framework_library target_name)
 
   _mage_resolve_common_compile_options(compile_options ${compile_option_args})
 
-  _mage_get_build_definitions(compile_definitions)
-
   add_library(${target_name} STATIC EXCLUDE_FROM_ALL
     ${MAGE_UNITTEST_FRAMEWORK_SRCS})
 
@@ -64,12 +62,6 @@ function(add_mage_unittest_framework_library target_name)
     target_compile_options(${target_name}
       PRIVATE
         ${compile_options})
-  endif()
-
-  if(compile_definitions)
-    target_compile_definitions(${target_name}
-      PRIVATE
-        ${compile_definitions})
   endif()
 
   if(MAGE_UNITTEST_FRAMEWORK_LINK_LIBRARIES)
@@ -137,8 +129,6 @@ function(add_mage_unittest target_name)
 
   _mage_resolve_common_compile_options(compile_options ${compile_option_args})
 
-  _mage_get_build_definitions(compile_definitions)
-
   set(link_option_args
     IS_TEST
     LINK_OPTIONS ${MAGE_UNITTEST_LINK_OPTIONS})
@@ -176,12 +166,6 @@ function(add_mage_unittest target_name)
     target_compile_options(${target_name}
       PRIVATE
         ${compile_options})
-  endif()
-
-  if(compile_definitions)
-    target_compile_definitions(${target_name}
-      PRIVATE
-        ${compile_definitions})
   endif()
 
   if(link_options)

@@ -57,8 +57,6 @@ function(add_mage_object_library target_name)
 
   _mage_resolve_common_compile_options(compile_options ${compile_option_args})
 
-  _mage_get_build_definitions(compile_definitions)
-
   add_library(${target_name} OBJECT EXCLUDE_FROM_ALL
     ${MAGE_OBJECT_LIBRARY_SRCS})
 
@@ -70,12 +68,6 @@ function(add_mage_object_library target_name)
     target_compile_options(${target_name}
       PRIVATE
         ${compile_options})
-  endif()
-
-  if(compile_definitions)
-    target_compile_definitions(${target_name}
-      PRIVATE
-        ${compile_definitions})
   endif()
 
   if(MAGE_OBJECT_LIBRARY_DEPENDS)
@@ -148,8 +140,6 @@ function(add_mage_library target_name)
 
   _mage_resolve_common_compile_options(compile_options ${compile_option_args})
 
-  _mage_get_build_definitions(compile_definitions)
-
   _mage_get_all_object_files_from_deps(
     all_object_files "${MAGE_LIBRARY_DEPENDS}")
 
@@ -165,12 +155,6 @@ function(add_mage_library target_name)
     target_compile_options(${target_name}
       PRIVATE
         ${compile_options})
-  endif()
-
-  if(compile_definitions)
-    target_compile_definitions(${target_name}
-      PRIVATE
-        ${compile_definitions})
   endif()
 
   if(MAGE_LIBRARY_LINK_LIBRARIES)
@@ -251,8 +235,6 @@ function(add_mage_bitcode_library target_name)
 
   _mage_resolve_common_compile_options(compile_options ${compile_option_args})
 
-  _mage_get_build_definitions(compile_definitions)
-
   set(link_option_args
     LINK_OPTIONS ${MAGE_BITCODE_LIBRARY_LINK_OPTIONS})
   if(MAGE_BITCODE_LIBRARY_NO_COMMON_LINK_OPTIONS)
@@ -276,12 +258,6 @@ function(add_mage_bitcode_library target_name)
     target_compile_options(${target_name}
       PRIVATE
         ${compile_options})
-  endif()
-
-  if(compile_definitions)
-    target_compile_definitions(${target_name}
-      PRIVATE
-        ${compile_definitions})
   endif()
 
   if(link_options)

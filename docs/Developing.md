@@ -25,6 +25,7 @@ mage/
 ├── include/            # Public headers
 │   └── mage/           # Public Mage library layers and component interfaces
 │       ├── Benchmark/  # APIs for GPU performance measurement
+│       ├── Config/     # Compile-time configuration
 │       ├── GPU/        # Low-level GPU execution primitives (warp/group ops)
 │       ├── Math/       # Elementary functions and reusable numerical algorithms
 │       ├── Offload/    # APIs for managing host-device interaction
@@ -37,6 +38,8 @@ mage/
 ````
 
 Mage public APIs are organized into library layers. Each top-level directory under `include/mage` defines a layer composed of cohesive components and establishes an architectural dependency boundary.
+
+The `Config` layer provides foundational compile-time configuration for use by other layers.
 
 Component availability is independent of layer organization: individual components may support host builds, GPU builds, or both. Build targets describe how component implementations are compiled and optionally aggregated into library artifacts.
 

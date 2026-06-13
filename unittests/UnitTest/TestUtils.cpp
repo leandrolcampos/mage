@@ -11,7 +11,9 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#if defined(MAGE_BUILD_IS_GPU)
+#include "mage/Config/Target.hpp"
+
+#if MAGE_TARGET_ARCH_IS_GPU
 
 #include <stddef.h>
 #include <stdlib.h>
@@ -40,4 +42,4 @@ void operator delete(void *) noexcept { __builtin_trap(); }
 
 void operator delete(void *, size_t) noexcept { __builtin_trap(); }
 
-#endif // defined(MAGE_BUILD_IS_GPU)
+#endif // MAGE_TARGET_ARCH_IS_GPU

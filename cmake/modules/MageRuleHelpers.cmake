@@ -123,28 +123,6 @@ function(_mage_require_deps_have_allowed_target_types
 endfunction()
 
 # ------------------------------------------------------------------------------
-# Compile definition helpers
-# ------------------------------------------------------------------------------
-
-function(_mage_get_build_definitions out_var)
-  set(build_definitions)
-
-  if(MAGE_BUILD_IS_GPU)
-    list(APPEND build_definitions MAGE_BUILD_IS_GPU)
-  endif()
-
-  if(MAGE_BUILD_IS_AMDGPU)
-    list(APPEND build_definitions MAGE_BUILD_IS_AMDGPU)
-  endif()
-
-  if(MAGE_BUILD_IS_NVPTX)
-    list(APPEND build_definitions MAGE_BUILD_IS_NVPTX)
-  endif()
-
-  set(${out_var} ${build_definitions} PARENT_SCOPE)
-endfunction()
-
-# ------------------------------------------------------------------------------
 # Compile option helpers
 # ------------------------------------------------------------------------------
 
