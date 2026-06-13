@@ -2,7 +2,7 @@ add_mage_unittest(
   ParallelTest
   SRCS
     ParallelTest.cpp
-  BUILDS
+  BUILD_KINDS
     HOST
   LINK_LIBRARIES
     MageSupport
@@ -13,7 +13,7 @@ add_mage_unittest(
   SequentialTest
   SRCS
     SequentialTest.cpp
-  BUILDS
+  BUILD_KINDS
     HOST
   LINK_LIBRARIES
     MageSupport
@@ -24,7 +24,7 @@ add_mage_unittest(
   RangeTest
   SRCS
     RangeTest.cpp
-  BUILDS
+  BUILD_KINDS
     HOST
     GPU
 )

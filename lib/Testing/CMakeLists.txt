@@ -2,7 +2,7 @@ add_mage_library(
   MageTesting
   SRCS
     MpfrFloat.cpp
-  BUILDS
+  BUILD_KINDS
     HOST
   LINK_LIBRARIES
     Mage::MPFR

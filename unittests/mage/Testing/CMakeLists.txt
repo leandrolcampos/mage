@@ -2,7 +2,7 @@ add_mage_unittest(
   MpfrFloatTest
   SRCS
     MpfrFloatTest.cpp
-  BUILDS
+  BUILD_KINDS
     HOST
   LINK_LIBRARIES
     MageTesting

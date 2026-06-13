@@ -91,67 +91,18 @@ function(_mage_get_llvm_cmake_dir_from_root out_var llvm_root)
     "under lib/cmake/llvm or lib64/cmake/llvm")
 endfunction()
 
-function(_mage_configure_llvm_libc_target)
-  if(TARGET MageLLVMLibC)
-    return()
-  endif()
-
-  add_library(MageLLVMLibC INTERFACE)
-  add_library(Mage::LLVMLibC ALIAS MageLLVMLibC)
-
-  if(MAGE_INTERNAL_GPU_BUILD)
-    target_link_options(MageLLVMLibC INTERFACE
-      -stdlib)
-    return()
-  endif()
-
-  if((NOT DEFINED MAGE_LLVM_LIBRARY_DIR) OR
-     (MAGE_LLVM_LIBRARY_DIR STREQUAL ""))
-    message(FATAL_ERROR
-      "_mage_configure_llvm_libc_target() requires "
-      "MAGE_LLVM_LIBRARY_DIR to be set")
-  endif()
-
-  if((NOT DEFINED MAGE_LLVM_HOST_TRIPLE) OR
-     (MAGE_LLVM_HOST_TRIPLE STREQUAL ""))
-    message(FATAL_ERROR
-      "_mage_configure_llvm_libc_target() requires "
-      "MAGE_LLVM_HOST_TRIPLE to be set")
-  endif()
-
-  set(host_libc_dir
-    "${MAGE_LLVM_LIBRARY_DIR}/${MAGE_LLVM_HOST_TRIPLE}")
-
-  # Use libllvmlibc.a from MAGE_LLVM_ROOT only.
-  find_library(llvm_libc
-    NAMES libllvmlibc.a
-    PATHS "${host_libc_dir}"
-    NO_DEFAULT_PATH)
-
-  if(NOT llvm_libc)
-    message(FATAL_ERROR
-      "libllvmlibc.a was not found in '${host_libc_dir}'; make sure "
-      "MAGE_LLVM_ROOT points to an LLVM installation with LLVM libc")
-  endif()
-
-  target_link_libraries(MageLLVMLibC INTERFACE
-    "${llvm_libc}")
-
-  unset(llvm_libc CACHE)
-endfunction()
-
-function(_mage_configure_llvm_component_targets)
+function(_mage_configure_llvm_components)
   if((NOT DEFINED MAGE_LLVM_INCLUDE_DIRS) OR
      (MAGE_LLVM_INCLUDE_DIRS STREQUAL ""))
     message(FATAL_ERROR
-      "_mage_configure_llvm_component_targets() requires "
+      "_mage_configure_llvm_components() requires "
       "MAGE_LLVM_INCLUDE_DIRS to be set")
   endif()
 
   if((NOT DEFINED MAGE_LLVM_DEFINITIONS) OR
      (MAGE_LLVM_DEFINITIONS STREQUAL ""))
     message(FATAL_ERROR
-      "_mage_configure_llvm_component_targets() requires "
+      "_mage_configure_llvm_components() requires "
       "MAGE_LLVM_DEFINITIONS to be set")
   endif()
 
@@ -189,8 +140,6 @@ function(mage_configure_llvm_toolchain)
 
   set(MAGE_LLVM_VERSION "${LLVM_PACKAGE_VERSION}" CACHE INTERNAL
     "LLVM version reported by LLVMConfig.cmake" FORCE)
-  set(MAGE_LLVM_HOST_TRIPLE "${LLVM_HOST_TRIPLE}" CACHE INTERNAL
-    "LLVM host target triple reported by LLVMConfig.cmake" FORCE)
   set(MAGE_LLVM_INCLUDE_DIRS "${LLVM_INCLUDE_DIRS}" CACHE INTERNAL
     "LLVM include directories reported by LLVMConfig.cmake" FORCE)
   set(MAGE_LLVM_DEFINITIONS "${LLVM_DEFINITIONS}" CACHE INTERNAL
@@ -203,8 +152,61 @@ function(mage_configure_llvm_toolchain)
   message(STATUS
     "Found LLVM: ${llvm_root} (found version \"${MAGE_LLVM_VERSION}\")")
 
-  _mage_configure_llvm_libc_target()
-  _mage_configure_llvm_component_targets()
+  _mage_configure_llvm_components()
+endfunction()
+
+function(mage_configure_llvm_libc)
+  if(TARGET MageLLVMLibC)
+    return()
+  endif()
+
+  if(NOT DEFINED MAGE_BUILD_KIND OR MAGE_BUILD_KIND STREQUAL "")
+    message(FATAL_ERROR
+      "mage_configure_llvm_libc() requires MAGE_BUILD_KIND to be set")
+  endif()
+
+  add_library(MageLLVMLibC INTERFACE)
+  add_library(Mage::LLVMLibC ALIAS MageLLVMLibC)
+
+  if(MAGE_BUILD_KIND STREQUAL "GPU")
+    target_link_options(MageLLVMLibC INTERFACE
+      -stdlib)
+    return()
+  endif()
+
+  if((NOT DEFINED MAGE_LLVM_LIBRARY_DIR) OR
+     (MAGE_LLVM_LIBRARY_DIR STREQUAL ""))
+    message(FATAL_ERROR
+      "mage_configure_llvm_libc() requires "
+      "MAGE_LLVM_LIBRARY_DIR to be set")
+  endif()
+
+  if((NOT DEFINED MAGE_TARGET_TRIPLE) OR
+     (MAGE_TARGET_TRIPLE STREQUAL ""))
+    message(FATAL_ERROR
+      "mage_configure_llvm_libc() requires MAGE_TARGET_TRIPLE to be set")
+  endif()
+
+  set(target_libc_dir
+    "${MAGE_LLVM_LIBRARY_DIR}/${MAGE_TARGET_TRIPLE}")
+
+  # Use libllvmlibc.a from MAGE_LLVM_ROOT only.
+  find_library(llvm_libc
+    NAMES libllvmlibc.a
+    PATHS "${target_libc_dir}"
+    NO_DEFAULT_PATH)
+
+  if(NOT llvm_libc)
+    message(FATAL_ERROR
+      "libllvmlibc.a for target '${MAGE_TARGET_TRIPLE}' was not found in "
+      "'${target_libc_dir}'; make sure MAGE_LLVM_ROOT points to an LLVM "
+      "installation with LLVM libc for this target")
+  endif()
+
+  target_link_libraries(MageLLVMLibC INTERFACE
+    "${llvm_libc}")
+
+  unset(llvm_libc CACHE)
 endfunction()
 
 function(mage_configure_llvm_gpu_loader)

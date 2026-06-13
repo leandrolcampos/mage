@@ -12,6 +12,15 @@ Mage uses:
 
 The Mage build and test interface itself is documented in [Building](Building.md).
 
+Each CMake configuration has one build kind:
+
+- `HOST` compiles code for the CPU side of the offloading model. It identifies
+  the execution target, not the machine running the build.
+- `GPU` compiles device code for a supported GPU target.
+
+Mage CMake rule functions use `BUILD_KINDS` to restrict a CMake target to one
+or more build kinds. If omitted, the target is available in both.
+
 ## Repository Structure
 
 The source tree is organized using an LLVM-like directory layout to separate public APIs, implementations, tests, benchmarks, and research artifacts:
@@ -38,10 +47,6 @@ mage/
 ````
 
 Mage public APIs are organized into library layers. Each top-level directory under `include/mage` defines a layer composed of cohesive components and establishes an architectural dependency boundary.
-
-The `Config` layer provides foundational compile-time configuration for use by other layers.
-
-Component availability is independent of layer organization: individual components may support host builds, GPU builds, or both. Build targets describe how component implementations are compiled and optionally aggregated into library artifacts.
 
 ## Documentation Conventions
 

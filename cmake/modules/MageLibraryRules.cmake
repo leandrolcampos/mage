@@ -8,7 +8,7 @@ include_guard(GLOBAL)
 #   add_mage_object_library(
 #     <target name>
 #     SRCS <list of source files>
-#     [BUILDS <HOST|GPU>...]
+#     [BUILD_KINDS <HOST|GPU>...]
 #     [DEPENDS <list of add_mage_object_library targets>]
 #     [COMPILE_OPTIONS <list of compile options>]
 #     [NO_COMMON_COMPILE_OPTIONS]
@@ -17,7 +17,7 @@ function(add_mage_object_library target_name)
   cmake_parse_arguments(MAGE_OBJECT_LIBRARY
     "NO_COMMON_COMPILE_OPTIONS"
     ""
-    "SRCS;BUILDS;DEPENDS;COMPILE_OPTIONS"
+    "SRCS;BUILD_KINDS;DEPENDS;COMPILE_OPTIONS"
     ${ARGN})
 
   if(MAGE_OBJECT_LIBRARY_UNPARSED_ARGUMENTS)
@@ -31,16 +31,16 @@ function(add_mage_object_library target_name)
       "add_mage_object_library(${target_name}) requires SRCS")
   endif()
 
-  _mage_set_builds_for_target(
-    "${target_name}" "${MAGE_OBJECT_LIBRARY_BUILDS}")
+  _mage_set_target_build_kinds(
+    "${target_name}" "${MAGE_OBJECT_LIBRARY_BUILD_KINDS}")
 
-  _mage_builds_include_current_build(object_library_enabled
-    "${MAGE_OBJECT_LIBRARY_BUILDS}")
+  _mage_build_kinds_include_current_build_kind(
+    object_library_enabled "${MAGE_OBJECT_LIBRARY_BUILD_KINDS}")
   if(NOT object_library_enabled)
     return()
   endif()
 
-  _mage_require_deps_in_current_build(
+  _mage_require_deps_available_in_current_build(
     "${target_name}" "${MAGE_OBJECT_LIBRARY_DEPENDS}")
 
   set(allowed_target_types "${MAGE_OBJECT_LIBRARY_TARGET_TYPE}")
@@ -88,7 +88,7 @@ endfunction()
 #   add_mage_library(
 #     <target name>
 #     SRCS <list of source files>
-#     [BUILDS <HOST|GPU>...]
+#     [BUILD_KINDS <HOST|GPU>...]
 #     [DEPENDS <list of add_mage_object_library targets>]
 #     [COMPILE_OPTIONS <list of compile options>]
 #     [LINK_LIBRARIES <list of linking libraries for this target>
@@ -102,7 +102,7 @@ function(add_mage_library target_name)
   cmake_parse_arguments(MAGE_LIBRARY
     "NO_COMMON_COMPILE_OPTIONS"
     ""
-    "SRCS;BUILDS;DEPENDS;COMPILE_OPTIONS;LINK_LIBRARIES"
+    "SRCS;BUILD_KINDS;DEPENDS;COMPILE_OPTIONS;LINK_LIBRARIES"
     ${ARGN})
 
   if(MAGE_LIBRARY_UNPARSED_ARGUMENTS)
@@ -116,14 +116,16 @@ function(add_mage_library target_name)
       "add_mage_library(${target_name}) requires SRCS and/or DEPENDS")
   endif()
 
-  _mage_set_builds_for_target("${target_name}" "${MAGE_LIBRARY_BUILDS}")
+  _mage_set_target_build_kinds(
+    "${target_name}" "${MAGE_LIBRARY_BUILD_KINDS}")
 
-  _mage_builds_include_current_build(library_enabled "${MAGE_LIBRARY_BUILDS}")
+  _mage_build_kinds_include_current_build_kind(
+    library_enabled "${MAGE_LIBRARY_BUILD_KINDS}")
   if(NOT library_enabled)
     return()
   endif()
 
-  _mage_require_deps_in_current_build(
+  _mage_require_deps_available_in_current_build(
     "${target_name}" "${MAGE_LIBRARY_DEPENDS}")
 
   set(allowed_target_types "${MAGE_OBJECT_LIBRARY_TARGET_TYPE}")
@@ -178,7 +180,7 @@ endfunction()
 #   add_mage_bitcode_library(
 #     <target name>
 #     SRCS <list of source files>
-#     [BUILDS <HOST|GPU>...]
+#     [BUILD_KINDS <HOST|GPU>...]
 #     [DEPENDS <list of add_mage_object_library targets>]
 #     [COMPILE_OPTIONS <list of compile options>]
 #     [LINK_OPTIONS <list of link options>]
@@ -195,7 +197,7 @@ function(add_mage_bitcode_library target_name)
   cmake_parse_arguments(MAGE_BITCODE_LIBRARY
     "NO_COMMON_COMPILE_OPTIONS;NO_COMMON_LINK_OPTIONS"
     ""
-    "SRCS;BUILDS;DEPENDS;COMPILE_OPTIONS;LINK_OPTIONS"
+    "SRCS;BUILD_KINDS;DEPENDS;COMPILE_OPTIONS;LINK_OPTIONS"
     ${ARGN})
 
   if(MAGE_BITCODE_LIBRARY_UNPARSED_ARGUMENTS)
@@ -209,16 +211,16 @@ function(add_mage_bitcode_library target_name)
       "add_mage_bitcode_library(${target_name}) requires SRCS and/or DEPENDS")
   endif()
 
-  _mage_set_builds_for_target(
-    "${target_name}" "${MAGE_BITCODE_LIBRARY_BUILDS}")
+  _mage_set_target_build_kinds(
+    "${target_name}" "${MAGE_BITCODE_LIBRARY_BUILD_KINDS}")
 
-  _mage_builds_include_current_build(
-    bitcode_library_enabled "${MAGE_BITCODE_LIBRARY_BUILDS}")
+  _mage_build_kinds_include_current_build_kind(
+    bitcode_library_enabled "${MAGE_BITCODE_LIBRARY_BUILD_KINDS}")
   if(NOT bitcode_library_enabled)
     return()
   endif()
 
-  _mage_require_deps_in_current_build(
+  _mage_require_deps_available_in_current_build(
     "${target_name}" "${MAGE_BITCODE_LIBRARY_DEPENDS}")
 
   set(allowed_target_types "${MAGE_OBJECT_LIBRARY_TARGET_TYPE}")

@@ -9,81 +9,78 @@ set(MAGE_BITCODE_LIBRARY_TARGET_TYPE "MAGE_BITCODE_LIBRARY")
 set(MAGE_SOURCE_INCLUDE_DIR "${PROJECT_SOURCE_DIR}/include")
 
 # ------------------------------------------------------------------------------
-# Build helpers
+# Build kind helpers
 # ------------------------------------------------------------------------------
 
-function(_mage_get_normalized_builds out_var builds_list)
-  set(normalized_builds)
+function(_mage_normalize_build_kinds out_var build_kinds_list)
+  set(normalized_build_kinds)
 
-  if(builds_list)
-    foreach(build IN LISTS builds_list)
-      string(STRIP "${build}" build)
-      string(TOUPPER "${build}" build)
+  if(build_kinds_list)
+    foreach(build_kind IN LISTS build_kinds_list)
+      string(STRIP "${build_kind}" build_kind)
+      string(TOUPPER "${build_kind}" build_kind)
 
-      if(NOT build STREQUAL "HOST" AND
-        NOT build STREQUAL "GPU")
+      if(NOT build_kind STREQUAL "HOST" AND
+        NOT build_kind STREQUAL "GPU")
         message(FATAL_ERROR
-          "unsupported build '${build}'; expected HOST and/or GPU")
+          "unsupported build kind '${build_kind}'; expected HOST and/or GPU")
       endif()
 
-      list(APPEND normalized_builds "${build}")
+      list(APPEND normalized_build_kinds "${build_kind}")
     endforeach()
   else()
-    list(APPEND normalized_builds HOST GPU)
+    list(APPEND normalized_build_kinds HOST GPU)
   endif()
 
-  list(REMOVE_DUPLICATES normalized_builds)
-  set(${out_var} "${normalized_builds}" PARENT_SCOPE)
+  list(REMOVE_DUPLICATES normalized_build_kinds)
+  set(${out_var} "${normalized_build_kinds}" PARENT_SCOPE)
 endfunction()
 
-function(_mage_set_builds_for_target target_name builds_list)
-  _mage_get_normalized_builds(builds "${builds_list}")
+function(_mage_set_target_build_kinds target_name build_kinds_list)
+  _mage_normalize_build_kinds(build_kinds "${build_kinds_list}")
 
   set_property(GLOBAL PROPERTY
-    "MAGE_BUILDS_FOR_${target_name}" "${builds}")
+    "MAGE_BUILD_KINDS_FOR_${target_name}" "${build_kinds}")
 endfunction()
 
-function(_mage_builds_include_current_build out_var builds_list)
-  _mage_get_normalized_builds(builds "${builds_list}")
+function(_mage_build_kinds_include_current_build_kind
+    out_var build_kinds_list)
+  _mage_normalize_build_kinds(build_kinds "${build_kinds_list}")
 
-  if(MAGE_BUILD_IS_GPU)
-    set(current_build GPU)
-  else()
-    set(current_build HOST)
-  endif()
-
-  if(current_build IN_LIST builds)
+  if(MAGE_BUILD_KIND IN_LIST build_kinds)
     set(${out_var} ON PARENT_SCOPE)
   else()
     set(${out_var} OFF PARENT_SCOPE)
   endif()
 endfunction()
 
-function(_mage_get_builds_for_target out_var target_name)
-  get_property(builds GLOBAL PROPERTY "MAGE_BUILDS_FOR_${target_name}")
+function(_mage_get_target_build_kinds out_var target_name)
+  get_property(build_kinds GLOBAL PROPERTY
+    "MAGE_BUILD_KINDS_FOR_${target_name}")
 
-  if(NOT builds)
-    set(builds)
+  if(NOT build_kinds)
+    set(build_kinds)
   endif()
 
-  set(${out_var} "${builds}" PARENT_SCOPE)
+  set(${out_var} "${build_kinds}" PARENT_SCOPE)
 endfunction()
 
-function(_mage_require_deps_in_current_build target_name deps_list)
+function(_mage_require_deps_available_in_current_build target_name deps_list)
   foreach(dep_target IN LISTS deps_list)
     if(NOT TARGET "${dep_target}")
       message(FATAL_ERROR
         "${target_name} depends on unknown target '${dep_target}'")
     endif()
 
-    _mage_get_builds_for_target(dep_builds "${dep_target}")
-    if(NOT dep_builds)
+    _mage_get_target_build_kinds(dep_build_kinds "${dep_target}")
+    if(NOT dep_build_kinds)
       message(FATAL_ERROR
         "${target_name} depends on '${dep_target}', but '${dep_target}' "
-        "was not registered with Mage builds")
+        "was not registered with Mage build kinds")
     endif()
 
-    _mage_builds_include_current_build(dep_enabled "${dep_builds}")
+    _mage_build_kinds_include_current_build_kind(
+      dep_enabled "${dep_build_kinds}")
     if(NOT dep_enabled)
       message(FATAL_ERROR
         "${target_name} depends on '${dep_target}', but '${dep_target}' "
@@ -163,7 +160,7 @@ function(_mage_get_common_compile_options out_var)
     list(APPEND compile_options -Wglobal-constructors)
   endif()
 
-  if(MAGE_BUILD_IS_GPU)
+  if(MAGE_BUILD_KIND STREQUAL "GPU")
     list(APPEND compile_options
       --target=${MAGE_TARGET_TRIPLE}
       -nogpulib
@@ -172,10 +169,10 @@ function(_mage_get_common_compile_options out_var)
       -flto
       -Wno-multi-gpu)
 
-    if(MAGE_BUILD_IS_AMDGPU)
+    if(MAGE_TARGET_ARCH_IS_AMDGPU)
       list(APPEND compile_options
         "SHELL:-Xclang -mcode-object-version=none")
-    elseif(MAGE_BUILD_IS_NVPTX)
+    elseif(MAGE_TARGET_ARCH_IS_NVPTX)
       list(APPEND compile_options
         -Wno-unknown-cuda-version)
     else()
@@ -229,11 +226,11 @@ function(_mage_get_resolved_gpu_architecture out_var)
     return()
   endif()
 
-  if(MAGE_BUILD_IS_AMDGPU)
+  if(MAGE_TARGET_ARCH_IS_AMDGPU)
     message(FATAL_ERROR "No AMDGPU architecture was detected or provided")
   endif()
 
-  if(MAGE_BUILD_IS_NVPTX)
+  if(MAGE_TARGET_ARCH_IS_NVPTX)
     message(FATAL_ERROR "No NVPTX architecture was detected or provided")
   endif()
 
@@ -257,7 +254,7 @@ function(_mage_get_common_link_options out_var)
 
   set(link_options)
 
-  if(MAGE_BUILD_IS_GPU)
+  if(MAGE_BUILD_KIND STREQUAL "GPU")
     list(APPEND link_options
       --target=${MAGE_TARGET_TRIPLE}
       -flto)
@@ -267,9 +264,9 @@ function(_mage_get_common_link_options out_var)
     endif()
 
     _mage_get_resolved_gpu_architecture(gpu_architecture)
-    if(MAGE_BUILD_IS_AMDGPU)
+    if(MAGE_TARGET_ARCH_IS_AMDGPU)
       list(APPEND link_options -mcpu=${gpu_architecture})
-    elseif(MAGE_BUILD_IS_NVPTX)
+    elseif(MAGE_TARGET_ARCH_IS_NVPTX)
       list(APPEND link_options -march=${gpu_architecture})
     else()
       message(FATAL_ERROR
@@ -288,14 +285,14 @@ function(_mage_get_common_bitcode_link_options out_var)
     -nostdlib
     -Wl,--lto-emit-llvm)
 
-  if(MAGE_BUILD_IS_GPU)
+  if(MAGE_BUILD_KIND STREQUAL "GPU")
     list(APPEND link_options --target=${MAGE_TARGET_TRIPLE})
 
     _mage_get_resolved_gpu_architecture(gpu_architecture)
 
-    if(MAGE_BUILD_IS_AMDGPU)
+    if(MAGE_TARGET_ARCH_IS_AMDGPU)
       list(APPEND link_options -mcpu=${gpu_architecture})
-    elseif(MAGE_BUILD_IS_NVPTX)
+    elseif(MAGE_TARGET_ARCH_IS_NVPTX)
       list(APPEND link_options -march=${gpu_architecture})
     else()
       message(FATAL_ERROR

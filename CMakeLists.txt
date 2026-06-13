@@ -46,30 +46,29 @@ include(MageRules)
 
 mage_configure_llvm_toolchain()
 
-if(NOT MAGE_INTERNAL_GPU_BUILD)
-  mage_normalize_gpu_target_triples()
-  mage_validate_gpu_target_triples()
-  set(MAGE_INTERNAL_TARGET_TRIPLE "default")
-endif()
-
 mage_resolve_current_build_context()
+
+mage_configure_llvm_libc()
 mage_configure_mpfr()
 
 add_subdirectory(lib)
 
-if(NOT MAGE_BUILD_IS_GPU)
+if(MAGE_BUILD_KIND STREQUAL "HOST")
   add_subdirectory(tools)
 endif()
 
 if(BUILD_TESTING)
-  if(MAGE_BUILD_IS_GPU)
+  if(MAGE_BUILD_KIND STREQUAL "GPU")
     mage_configure_llvm_gpu_loader()
   endif()
 
   add_subdirectory(unittests)
 endif()
 
-if(NOT MAGE_INTERNAL_GPU_BUILD)
+if(MAGE_BUILD_KIND STREQUAL "HOST")
+  mage_normalize_gpu_target_triples()
+  mage_validate_gpu_target_triples()
+
   foreach(gpu_target_triple IN LISTS MAGE_GPU_TARGET_TRIPLES)
     mage_add_gpu_build("${gpu_target_triple}")
   endforeach()

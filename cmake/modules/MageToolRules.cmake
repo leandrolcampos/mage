@@ -35,7 +35,7 @@ function(add_mage_tool target_name)
       "add_mage_tool(${target_name}) requires SRCS")
   endif()
 
-  if(MAGE_BUILD_IS_GPU)
+  if(MAGE_BUILD_KIND STREQUAL "GPU")
     message(FATAL_ERROR
       "add_mage_tool(${target_name}) cannot be used in a GPU build")
   endif()

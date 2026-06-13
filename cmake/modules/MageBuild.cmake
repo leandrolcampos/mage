@@ -9,10 +9,6 @@ if(NOT DEFINED MAGE_INTERNAL_GPU_BUILD)
   set(MAGE_INTERNAL_GPU_BUILD OFF)
 endif()
 
-if(NOT DEFINED MAGE_INTERNAL_TARGET_TRIPLE)
-  set(MAGE_INTERNAL_TARGET_TRIPLE "default")
-endif()
-
 function(mage_normalize_gpu_target_triples)
   set(normalized_gpu_target_triples)
 
@@ -55,6 +51,39 @@ function(mage_validate_gpu_target_triples)
   endforeach()
 endfunction()
 
+# Resolves the normalized target triple used by the configured C++ compiler.
+function(_mage_get_cxx_compiler_target_triple out_var)
+  if(NOT CMAKE_CXX_COMPILER_LOADED)
+    message(FATAL_ERROR
+      "_mage_get_cxx_compiler_target_triple() requires CXX to be enabled")
+  endif()
+
+  set(compiler_target_args)
+  if(DEFINED CMAKE_CXX_COMPILER_TARGET AND
+     NOT CMAKE_CXX_COMPILER_TARGET STREQUAL "")
+    list(APPEND compiler_target_args
+      "--target=${CMAKE_CXX_COMPILER_TARGET}")
+  endif()
+
+  execute_process(
+    COMMAND
+      "${CMAKE_CXX_COMPILER}"
+      ${compiler_target_args}
+      -print-target-triple
+    RESULT_VARIABLE result
+    OUTPUT_VARIABLE target_triple
+    ERROR_VARIABLE error
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_STRIP_TRAILING_WHITESPACE)
+
+  if(NOT result EQUAL 0 OR target_triple STREQUAL "")
+    message(FATAL_ERROR
+      "failed to determine the C++ compiler target triple: ${error}")
+  endif()
+
+  set(${out_var} "${target_triple}" PARENT_SCOPE)
+endfunction()
+
 # Checks whether the host toolchain can resolve a native GPU architecture.
 function(_mage_check_native_gpu_arch_support out_var gpu_target_triple)
   set(old_try_compile_target_type "${CMAKE_TRY_COMPILE_TARGET_TYPE}")
@@ -82,21 +111,24 @@ function(_mage_check_native_gpu_arch_support out_var gpu_target_triple)
   set(CMAKE_TRY_COMPILE_TARGET_TYPE "${old_try_compile_target_type}")
 endfunction()
 
-# Resolves the context for the current build, including the target triple,
-# backend classification, and optional GPU architecture. Resolved values are
-# persisted in CACHE INTERNAL so subdirectories can observe them.
+# Resolves the context for the current build, including its build kind, target
+# triple, target architecture classification, and optional GPU architecture.
 function(mage_resolve_current_build_context)
-  set(target_triple "${MAGE_INTERNAL_TARGET_TRIPLE}")
-  set(build_is_gpu OFF)
-  set(build_is_amdgpu OFF)
-  set(build_is_nvptx OFF)
+  set(build_kind HOST)
+  set(target_arch_is_amdgpu OFF)
+  set(target_arch_is_nvptx OFF)
   set(gpu_architecture "")
 
-  if(target_triple STREQUAL "default")
-    # Host build.
-  elseif(target_triple STREQUAL "amdgcn-amd-amdhsa")
-    set(build_is_gpu ON)
-    set(build_is_amdgpu ON)
+  if(NOT MAGE_INTERNAL_GPU_BUILD)
+    _mage_get_cxx_compiler_target_triple(target_triple)
+  elseif(NOT DEFINED MAGE_INTERNAL_TARGET_TRIPLE OR
+         MAGE_INTERNAL_TARGET_TRIPLE STREQUAL "")
+    message(FATAL_ERROR
+      "GPU builds require MAGE_INTERNAL_TARGET_TRIPLE to be set")
+  elseif(MAGE_INTERNAL_TARGET_TRIPLE STREQUAL "amdgcn-amd-amdhsa")
+    set(target_triple "${MAGE_INTERNAL_TARGET_TRIPLE}")
+    set(build_kind GPU)
+    set(target_arch_is_amdgpu ON)
     _mage_check_native_gpu_arch_support(
       host_can_resolve_gpu_native_arch "amdgcn-amd-amdhsa")
 
@@ -110,9 +142,10 @@ function(mage_resolve_current_build_context)
         "detected or provided; set MAGE_FORCE_AMDGPU_ARCHITECTURE, for example "
         "gfx1101, or remove amdgcn-amd-amdhsa from MAGE_GPU_TARGET_TRIPLES")
     endif()
-  elseif(target_triple STREQUAL "nvptx64-nvidia-cuda")
-    set(build_is_gpu ON)
-    set(build_is_nvptx ON)
+  elseif(MAGE_INTERNAL_TARGET_TRIPLE STREQUAL "nvptx64-nvidia-cuda")
+    set(target_triple "${MAGE_INTERNAL_TARGET_TRIPLE}")
+    set(build_kind GPU)
+    set(target_arch_is_nvptx ON)
     _mage_check_native_gpu_arch_support(
       host_can_resolve_gpu_native_arch "nvptx64-nvidia-cuda")
 
@@ -128,18 +161,18 @@ function(mage_resolve_current_build_context)
     endif()
   else()
     message(FATAL_ERROR
-      "unsupported target triple in mage_resolve_current_build_context: "
-      "${target_triple}")
+      "unsupported GPU target triple in mage_resolve_current_build_context: "
+      "${MAGE_INTERNAL_TARGET_TRIPLE}")
   endif()
 
   set(MAGE_TARGET_TRIPLE "${target_triple}" CACHE INTERNAL
     "Target triple for the current Mage build" FORCE)
-  set(MAGE_BUILD_IS_GPU "${build_is_gpu}" CACHE INTERNAL
-    "Whether the current Mage build targets a GPU" FORCE)
-  set(MAGE_BUILD_IS_AMDGPU "${build_is_amdgpu}" CACHE INTERNAL
-    "Whether the current Mage build targets AMDGPU" FORCE)
-  set(MAGE_BUILD_IS_NVPTX "${build_is_nvptx}" CACHE INTERNAL
-    "Whether the current Mage build targets NVPTX" FORCE)
+  set(MAGE_BUILD_KIND "${build_kind}" CACHE INTERNAL
+    "Build kind for the current Mage build" FORCE)
+  set(MAGE_TARGET_ARCH_IS_AMDGPU "${target_arch_is_amdgpu}" CACHE INTERNAL
+    "Whether the current Mage compilation target is AMDGPU" FORCE)
+  set(MAGE_TARGET_ARCH_IS_NVPTX "${target_arch_is_nvptx}" CACHE INTERNAL
+    "Whether the current Mage compilation target is NVPTX" FORCE)
   set(MAGE_GPU_ARCHITECTURE "${gpu_architecture}" CACHE INTERNAL
     "GPU architecture for the current Mage build" FORCE)
 endfunction()

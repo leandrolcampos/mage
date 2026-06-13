@@ -18,15 +18,15 @@ function(mage_configure_mpfr)
     return()
   endif()
 
-  if(NOT DEFINED MAGE_BUILD_IS_GPU)
+  if(NOT DEFINED MAGE_BUILD_KIND)
     message(FATAL_ERROR
-      "mage_configure_mpfr() requires MAGE_BUILD_IS_GPU to be set")
+      "mage_configure_mpfr() requires MAGE_BUILD_KIND to be set")
   endif()
 
   add_library(MageMPFR INTERFACE)
   add_library(Mage::MPFR ALIAS MageMPFR)
 
-  if(MAGE_BUILD_IS_GPU)
+  if(MAGE_BUILD_KIND STREQUAL "GPU")
     _mage_configure_unavailable_mpfr_target(
       "MPFR is unavailable in GPU builds")
 
