@@ -1,8 +1,14 @@
 add_mage_tool(
   mage-worst-cases
   SRCS
+    BreakpointDistance.cpp
+    CsvOutput.cpp
+    Progress.cpp
+    WorstCases.cpp
     mage-worst-cases.cpp
   LINK_LIBRARIES
+    MageSupport
+    MageTesting
     Mage::LLVMSupport
     Mage::MPFR
 )
