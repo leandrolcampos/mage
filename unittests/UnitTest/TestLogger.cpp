@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file implements logging for Mage unit tests.
+/// Implements logging for Mage unit tests.
 ///
 //===----------------------------------------------------------------------===//
 
@@ -16,6 +16,8 @@
 #include <inttypes.h>
 #include <stdint.h>
 #include <stdio.h>
+
+using namespace mage;
 
 namespace mage {
 namespace testing {
@@ -101,10 +103,10 @@ TestLogger &TestLogger::operator<<(double X) {
   return *this;
 }
 
-TestLogger &tlog() {
+} // namespace testing
+} // namespace mage
+
+testing::TestLogger &testing::tlog() {
   static TestLogger TestLog;
   return TestLog;
 }
-
-} // namespace testing
-} // namespace mage

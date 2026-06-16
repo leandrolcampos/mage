@@ -11,31 +11,31 @@ include_guard(GLOBAL)
 #   add_mage_unittest_framework_library(
 #     <target name>
 #     SRCS <list of source files>
-#     [BUILDS <HOST|GPU>...]
+#     [BUILD_KINDS <HOST|GPU>...]
 #     [COMPILE_OPTIONS <list of compile options>]
 #     [LINK_LIBRARIES <list of linking libraries for this target>]
 #     [NO_COMMON_COMPILE_OPTIONS]
 #   )
-function(add_mage_unittest_framework_library name)
+function(add_mage_unittest_framework_library target_name)
   cmake_parse_arguments(MAGE_UNITTEST_FRAMEWORK
     "NO_COMMON_COMPILE_OPTIONS"
     ""
-    "SRCS;BUILDS;COMPILE_OPTIONS;LINK_LIBRARIES"
+    "SRCS;BUILD_KINDS;COMPILE_OPTIONS;LINK_LIBRARIES"
     ${ARGN})
 
   if(MAGE_UNITTEST_FRAMEWORK_UNPARSED_ARGUMENTS)
     message(FATAL_ERROR
-      "add_mage_unittest_framework_library(${name}) received unexpected "
-      "arguments: ${MAGE_UNITTEST_FRAMEWORK_UNPARSED_ARGUMENTS}")
+      "add_mage_unittest_framework_library(${target_name}) received "
+      "unexpected arguments: ${MAGE_UNITTEST_FRAMEWORK_UNPARSED_ARGUMENTS}")
   endif()
 
   if(NOT MAGE_UNITTEST_FRAMEWORK_SRCS)
     message(FATAL_ERROR
-      "add_mage_unittest_framework_library(${name}) requires SRCS")
+      "add_mage_unittest_framework_library(${target_name}) requires SRCS")
   endif()
 
-  _mage_builds_include_current_build(
-    framework_enabled "${MAGE_UNITTEST_FRAMEWORK_BUILDS}")
+  _mage_build_kinds_include_current_build_kind(
+    framework_enabled "${MAGE_UNITTEST_FRAMEWORK_BUILD_KINDS}")
   if(NOT framework_enabled)
     return()
   endif()
@@ -49,23 +49,23 @@ function(add_mage_unittest_framework_library name)
 
   _mage_resolve_common_compile_options(compile_options ${compile_option_args})
 
-  add_library(${name} STATIC EXCLUDE_FROM_ALL
+  add_library(${target_name} STATIC EXCLUDE_FROM_ALL
     ${MAGE_UNITTEST_FRAMEWORK_SRCS})
 
-  target_include_directories(${name}
+  target_include_directories(${target_name}
     PUBLIC
       "${PROJECT_SOURCE_DIR}/unittests"
     PRIVATE
       "${MAGE_SOURCE_INCLUDE_DIR}")
 
   if(compile_options)
-    target_compile_options(${name}
+    target_compile_options(${target_name}
       PRIVATE
         ${compile_options})
   endif()
 
   if(MAGE_UNITTEST_FRAMEWORK_LINK_LIBRARIES)
-    target_link_libraries(${name}
+    target_link_libraries(${target_name}
       PRIVATE
         ${MAGE_UNITTEST_FRAMEWORK_LINK_LIBRARIES})
   endif()
@@ -77,7 +77,7 @@ endfunction()
 #   add_mage_unittest(
 #     <target name>
 #     SRCS <list of source files>
-#     [BUILDS <HOST|GPU>...]
+#     [BUILD_KINDS <HOST|GPU>...]
 #     [DEPENDS <list of add_mage_object_library targets>]
 #     [COMPILE_OPTIONS <list of compile options>]
 #     [LINK_OPTIONS <list of link options>]
@@ -92,7 +92,7 @@ function(add_mage_unittest target_name)
   cmake_parse_arguments(MAGE_UNITTEST
     "NO_COMMON_COMPILE_OPTIONS;NO_COMMON_LINK_OPTIONS"
     ""
-    "SRCS;BUILDS;DEPENDS;COMPILE_OPTIONS;LINK_OPTIONS;LINK_LIBRARIES"
+    "SRCS;BUILD_KINDS;DEPENDS;COMPILE_OPTIONS;LINK_OPTIONS;LINK_LIBRARIES"
     ${ARGN})
 
   if(MAGE_UNITTEST_UNPARSED_ARGUMENTS)
@@ -106,12 +106,13 @@ function(add_mage_unittest target_name)
       "add_mage_unittest(${target_name}) requires SRCS and/or DEPENDS")
   endif()
 
-  _mage_builds_include_current_build(unittest_enabled "${MAGE_UNITTEST_BUILDS}")
+  _mage_build_kinds_include_current_build_kind(
+    unittest_enabled "${MAGE_UNITTEST_BUILD_KINDS}")
   if(NOT unittest_enabled)
     return()
   endif()
 
-  _mage_require_deps_in_current_build(
+  _mage_require_deps_available_in_current_build(
     "${target_name}" "${MAGE_UNITTEST_DEPENDS}")
 
   set(allowed_target_types "${MAGE_OBJECT_LIBRARY_TARGET_TYPE}")
@@ -144,9 +145,12 @@ function(add_mage_unittest target_name)
     list(APPEND unittest_link_libraries MageUnitTest)
   endif()
 
-  if(NOT MAGE_BUILD_IS_GPU)
-    list(APPEND unittest_link_libraries "${MAGE_LLVM_LIBC}")
+  if(NOT TARGET Mage::LLVMLibC)
+    message(FATAL_ERROR
+      "add_mage_unittest(${target_name}) requires Mage::LLVMLibC")
   endif()
+
+  list(APPEND unittest_link_libraries Mage::LLVMLibC)
 
   _mage_get_all_object_files_from_deps(
     all_object_files "${MAGE_UNITTEST_DEPENDS}")
@@ -182,7 +186,7 @@ function(add_mage_unittest target_name)
 
   add_dependencies(mage-unittests ${target_name})
 
-  if(MAGE_BUILD_IS_GPU)
+  if(MAGE_BUILD_KIND STREQUAL "GPU")
     separate_arguments(llvm_gpu_loader_args NATIVE_COMMAND
       "${MAGE_LLVM_GPU_LOADER_ARGS}")
 

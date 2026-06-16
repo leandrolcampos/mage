@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file declares the core Mage unit-test framework.
+/// Declares the core Mage unit-test framework.
 ///
 /// Some of the code in this file is adapted from:
 ///
@@ -30,7 +30,7 @@ namespace testing {
 
 enum class TestCond { EQ, NE, LT, LE, GT, GE };
 
-namespace internal {
+namespace detail {
 
 struct Location {
   constexpr Location(const char *File, int Line) : File(File), Line(Line) {}
@@ -73,6 +73,7 @@ template <TestCond Cond> constexpr const char *getConditionString() {
   if constexpr (Cond == TestCond::GE)
     return "greater than or equal to";
 
+  // TODO: Use MAGE_UNREACHABLE once available.
   __builtin_unreachable();
 }
 
@@ -148,7 +149,7 @@ bool test(RunContext *Ctx, const LHSType &LHS, const RHSType &RHS,
   return false;
 }
 
-} // namespace internal
+} // namespace detail
 
 class Test {
 public:
@@ -164,19 +165,19 @@ protected:
   template <TestCond Cond, bool IsCString = false, typename LHSType,
             typename RHSType>
   bool test(const LHSType &LHS, const RHSType &RHS, const char *LHSStr,
-            const char *RHSStr, internal::Location Loc) {
-    return internal::test<Cond, IsCString>(Ctx, LHS, RHS, LHSStr, RHSStr, Loc);
+            const char *RHSStr, detail::Location Loc) {
+    return detail::test<Cond, IsCString>(Ctx, LHS, RHS, LHSStr, RHSStr, Loc);
   }
 
   static void addTest(Test *T);
 
 private:
-  void setContext(internal::RunContext *C) { Ctx = C; }
+  void setContext(detail::RunContext *C) { Ctx = C; }
 
   virtual const char *getName() const = 0;
   virtual void run() = 0;
 
-  internal::RunContext *Ctx = nullptr;
+  detail::RunContext *Ctx = nullptr;
   Test *Next = nullptr;
 
   static int getNumTests();
@@ -188,7 +189,7 @@ private:
 } // namespace testing
 } // namespace mage
 
-#define MAGE_TEST_LOC_() ::mage::testing::internal::Location(__FILE__, __LINE__)
+#define MAGE_TEST_LOC_() ::mage::testing::detail::Location(__FILE__, __LINE__)
 
 #define MAGE_TEST(SuiteName, TestName)                                         \
   namespace {                                                                  \

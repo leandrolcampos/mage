@@ -33,39 +33,42 @@ set(MAGE_GPU_TARGET_TRIPLES
   "Semicolon-separated GPU target triples to build. May be empty")
 
 set(MAGE_FORCE_AMDGPU_ARCHITECTURE "" CACHE STRING
-  "Force building of AMDGPU device code with the given architecture")
+  "AMDGPU architecture to use instead of automatic detection")
 set(MAGE_FORCE_NVPTX_ARCHITECTURE "" CACHE STRING
-  "Force building of NVPTX device code with the given architecture")
+  "NVPTX architecture to use instead of automatic detection")
 
 set(MAGE_GPU_TEST_PARALLELISM "1" CACHE STRING
   "Maximum number of GPU unit tests to run in parallel")
 
 include(MageBuild)
+include(MageMPFR)
 include(MageRules)
 
 mage_configure_llvm_toolchain()
 
-if(NOT MAGE_INTERNAL_GPU_BUILD)
-  mage_normalize_gpu_target_triples()
-  mage_validate_gpu_target_triples()
-  set(MAGE_INTERNAL_TARGET_TRIPLE "default")
-endif()
-
 mage_resolve_current_build_context()
+
+mage_configure_llvm_libc()
+mage_configure_mpfr()
 
 add_subdirectory(lib)
 
+if(MAGE_BUILD_KIND STREQUAL "HOST")
+  add_subdirectory(tools)
+endif()
+
 if(BUILD_TESTING)
-  if(MAGE_BUILD_IS_GPU)
+  if(MAGE_BUILD_KIND STREQUAL "GPU")
     mage_configure_llvm_gpu_loader()
-  else()
-    mage_configure_llvm_libc()
   endif()
 
   add_subdirectory(unittests)
 endif()
 
-if(NOT MAGE_INTERNAL_GPU_BUILD)
+if(MAGE_BUILD_KIND STREQUAL "HOST")
+  mage_normalize_gpu_target_triples()
+  mage_validate_gpu_target_triples()
+
   foreach(gpu_target_triple IN LISTS MAGE_GPU_TARGET_TRIPLES)
     mage_add_gpu_build("${gpu_target_triple}")
   endforeach()

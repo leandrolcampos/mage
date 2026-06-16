@@ -7,12 +7,14 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file declares logging support for Mage unit tests.
+/// Declares logging support for Mage unit tests.
 ///
 //===----------------------------------------------------------------------===//
 
 #ifndef MAGE_UNITTESTS_UNITTEST_TESTLOGGER_HPP
 #define MAGE_UNITTESTS_UNITTEST_TESTLOGGER_HPP
+
+#include "mage/Support/TypeTraits.hpp"
 
 namespace mage {
 namespace testing {
@@ -40,6 +42,16 @@ struct TestLogger {
   TestLogger &operator<<(_Float16);
   TestLogger &operator<<(float);
   TestLogger &operator<<(double);
+
+  template <typename Enum, enable_if_t<is_enum_v<Enum>, int> = 0>
+  TestLogger &operator<<(Enum Value) {
+    using Underlying = underlying_type_t<Enum>;
+
+    if constexpr (is_signed_v<Underlying>)
+      return *this << static_cast<long long>(Value);
+    else
+      return *this << static_cast<unsigned long long>(Value);
+  }
 };
 
 // Returns the global test logger to be used in unit tests.

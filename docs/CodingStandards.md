@@ -125,7 +125,9 @@ Commenting out large blocks of code is discouraged, but if you really have to do
 
 Use the `\file` command to turn the standard file header into a file-level comment.
 
-Include descriptive paragraphs for all public interfaces: public classes, public member functions, and public non-member functions. Avoid restating information that can be inferred from the API name or signature. The first sentence, or a paragraph beginning with `\brief`, is used as an abstract. Try to use a single sentence when possible.
+Document public interfaces when doing so provides information needed to understand their purpose, behavior, or correct use. Documentation should add information that is not already clear from the interface. Do not document an API merely to restate its name, signature, types, or straightforward implementation. Prefer clear names and types, and document non-obvious behavior, contracts, ownership, invariants, and edge cases. Consider the maintenance cost and risk of documentation becoming inconsistent with the code.
+
+The first sentence, or a paragraph beginning with `\brief`, is used as an abstract. Try to use a single sentence when possible.
 
 A minimal documentation comment:
 

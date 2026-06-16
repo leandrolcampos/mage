@@ -7,10 +7,18 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// Defines the entry point for Mage unit-test executables.
+/// Defines floating-point type aliases.
 ///
 //===----------------------------------------------------------------------===//
 
-#include "UnitTest/Test.hpp"
+#ifndef MAGE_SUPPORT_FLOATTYPES_HPP
+#define MAGE_SUPPORT_FLOATTYPES_HPP
 
-int main() { return mage::testing::Test::runTests(); }
+namespace mage {
+
+// IEEE 754 binary16 floating-point type.
+using float16 = _Float16;
+
+} // namespace mage
+
+#endif // MAGE_SUPPORT_FLOATTYPES_HPP

@@ -5,7 +5,7 @@ set(ctest_args
   --output-on-failure
   --test-dir "${CMAKE_BINARY_DIR}")
 
-if(MAGE_BUILD_IS_GPU)
+if(MAGE_BUILD_KIND STREQUAL "GPU")
   list(APPEND ctest_args --parallel "${MAGE_GPU_TEST_PARALLELISM}")
 endif()
 

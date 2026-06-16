@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file implements the core Mage unit-test framework.
+/// Implements the core Mage unit-test framework.
 ///
 /// Some of the code in this file is adapted from:
 ///
@@ -19,12 +19,16 @@
 
 #include "UnitTest/Test.hpp"
 
-namespace mage {
-namespace testing {
+using namespace mage;
 
-TestLogger &internal::operator<<(TestLogger &Logger, internal::Location Loc) {
+testing::TestLogger &
+testing::detail::operator<<(testing::TestLogger &Logger,
+                            testing::detail::Location Loc) {
   return Logger << Loc.File << ':' << Loc.Line << ": FAILURE\n";
 }
+
+namespace mage {
+namespace testing {
 
 Test::~Test() = default;
 
@@ -45,7 +49,7 @@ int Test::runTests() {
     const char *TestName = T->getName();
     tlog() << "[ RUN      ] " << TestName << '\n';
 
-    internal::RunContext Ctx;
+    detail::RunContext Ctx;
 
     T->setContext(&Ctx);
     T->setUp();
@@ -56,7 +60,7 @@ int Test::runTests() {
     T->tearDown();
     T->setContext(nullptr);
 
-    if (Ctx.status() == internal::RunContext::RunResult::Fail) {
+    if (Ctx.status() == detail::RunContext::RunResult::Fail) {
       ++FailCount;
       tlog() << "[  FAILED  ] " << TestName << '\n';
     } else {

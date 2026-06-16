@@ -7,10 +7,17 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// Defines the entry point for Mage unit-test executables.
+/// Tests floating-point type aliases.
 ///
 //===----------------------------------------------------------------------===//
 
+#include "mage/Support/FloatTypes.hpp"
 #include "UnitTest/Test.hpp"
 
-int main() { return mage::testing::Test::runTests(); }
+#include "mage/Support/TypeTraits.hpp"
+
+using namespace mage;
+
+static_assert(is_same_v<float16, _Float16>, "float16 aliases _Float16");
+
+MAGE_TEST(FloatTypesTest, CompileTimeChecks) {}
