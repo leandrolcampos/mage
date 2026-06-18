@@ -13,7 +13,9 @@ include_guard(GLOBAL)
 #     SRCS <list of source files>
 #     [COMPILE_OPTIONS <list of compile options>]
 #     [LINK_OPTIONS <list of link options>]
-#     [LINK_LIBRARIES <list of linking libraries for this target>]
+#     [LINK_LIBRARIES <list of linking libraries for this target>
+#                     [HOST_ONLY|AMDGPU_ONLY|NVPTX_ONLY <items>...]
+#                     [PUBLIC|PRIVATE|INTERFACE <items>...]]
 #     [NO_COMMON_COMPILE_OPTIONS]
 #     [NO_COMMON_LINK_OPTIONS]
 #   )
@@ -61,6 +63,9 @@ function(add_mage_tool target_name)
 
   _mage_resolve_common_link_options(link_options ${link_option_args})
 
+  _mage_resolve_conditional_link_libraries(
+    link_libraries "${MAGE_TOOL_LINK_LIBRARIES}")
+
   add_executable(${target_name} EXCLUDE_FROM_ALL
     ${MAGE_TOOL_SRCS})
 
@@ -80,10 +85,10 @@ function(add_mage_tool target_name)
         ${link_options})
   endif()
 
-  if(MAGE_TOOL_LINK_LIBRARIES)
+  if(link_libraries)
     target_link_libraries(${target_name}
       PRIVATE
-        ${MAGE_TOOL_LINK_LIBRARIES})
+        ${link_libraries})
   endif()
 
   set_target_properties(${target_name} PROPERTIES

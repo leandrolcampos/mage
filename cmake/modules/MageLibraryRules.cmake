@@ -92,6 +92,7 @@ endfunction()
 #     [DEPENDS <list of add_mage_object_library targets>]
 #     [COMPILE_OPTIONS <list of compile options>]
 #     [LINK_LIBRARIES <list of linking libraries for this target>
+#                     [HOST_ONLY|AMDGPU_ONLY|NVPTX_ONLY <items>...]
 #                     [PUBLIC|PRIVATE|INTERFACE <items>...]]
 #     [NO_COMMON_COMPILE_OPTIONS]
 #   )
@@ -145,6 +146,9 @@ function(add_mage_library target_name)
   _mage_get_all_object_files_from_deps(
     all_object_files "${MAGE_LIBRARY_DEPENDS}")
 
+  _mage_resolve_conditional_link_libraries(
+    resolved_link_libraries "${MAGE_LIBRARY_LINK_LIBRARIES}")
+
   add_library(${target_name} STATIC EXCLUDE_FROM_ALL
     ${MAGE_LIBRARY_SRCS}
     ${all_object_files})
@@ -159,17 +163,17 @@ function(add_mage_library target_name)
         ${compile_options})
   endif()
 
-  if(MAGE_LIBRARY_LINK_LIBRARIES)
+  if(resolved_link_libraries)
     target_link_libraries(${target_name}
       PUBLIC
-      ${MAGE_LIBRARY_LINK_LIBRARIES})
+      ${resolved_link_libraries})
   endif()
 
   set_target_properties(${target_name} PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     MAGE_TARGET_TYPE "${MAGE_LIBRARY_TARGET_TYPE}"
     MAGE_DEPS "${MAGE_LIBRARY_DEPENDS}"
-    MAGE_LINK_LIBRARIES "${MAGE_LIBRARY_LINK_LIBRARIES}")
+    MAGE_LINK_LIBRARIES "${resolved_link_libraries}")
 
   add_dependencies(mage-archives ${target_name})
 endfunction()

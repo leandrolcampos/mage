@@ -93,6 +93,43 @@ endfunction()
 # Dependency helpers
 # ------------------------------------------------------------------------------
 
+function(_mage_resolve_conditional_link_libraries
+    out_var link_libraries_list)
+  set(resolved_link_libraries)
+  set(include_current_section ON)
+
+  foreach(link_library IN LISTS link_libraries_list)
+    if(link_library STREQUAL "HOST_ONLY")
+      if(MAGE_BUILD_KIND STREQUAL "HOST")
+        set(include_current_section ON)
+      else()
+        set(include_current_section OFF)
+      endif()
+      continue()
+    elseif(link_library STREQUAL "AMDGPU_ONLY")
+      if(MAGE_TARGET_ARCH_IS_AMDGPU)
+        set(include_current_section ON)
+      else()
+        set(include_current_section OFF)
+      endif()
+      continue()
+    elseif(link_library STREQUAL "NVPTX_ONLY")
+      if(MAGE_TARGET_ARCH_IS_NVPTX)
+        set(include_current_section ON)
+      else()
+        set(include_current_section OFF)
+      endif()
+      continue()
+    endif()
+
+    if(include_current_section)
+      list(APPEND resolved_link_libraries "${link_library}")
+    endif()
+  endforeach()
+
+  set(${out_var} "${resolved_link_libraries}" PARENT_SCOPE)
+endfunction()
+
 function(_mage_require_deps_have_allowed_target_types
     target_name allowed_target_types deps_list)
   foreach(dep_target IN LISTS deps_list)
