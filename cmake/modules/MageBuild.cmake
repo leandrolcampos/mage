@@ -14,6 +14,7 @@ if((NOT DEFINED MAGE_INTERNAL_DEVICE_IMAGE_DIR) OR
   set(MAGE_INTERNAL_DEVICE_IMAGE_DIR "${CMAKE_BINARY_DIR}/device-images")
 endif()
 
+# Normalizes the cached MAGE_GPU_TARGET_TRIPLES value in-place.
 function(mage_normalize_gpu_target_triples)
   set(normalized_gpu_target_triples)
 
@@ -37,6 +38,7 @@ function(mage_normalize_gpu_target_triples)
     FORCE)
 endfunction()
 
+# Validates that each configured GPU target triple is supported by Mage.
 function(mage_validate_gpu_target_triples)
   set(supported_gpu_target_triples
     amdgcn-amd-amdhsa
@@ -94,6 +96,7 @@ function(_mage_check_native_gpu_architecture_support out_var gpu_target_triple)
   set(old_try_compile_target_type "${CMAKE_TRY_COMPILE_TARGET_TYPE}")
   set(old_required_flags "${CMAKE_REQUIRED_FLAGS}")
 
+  # Test compiler flag support without requiring the GPU linker to succeed.
   set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 
   if(gpu_target_triple STREQUAL "amdgcn-amd-amdhsa")

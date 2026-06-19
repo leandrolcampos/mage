@@ -13,6 +13,7 @@ set(MAGE_SOURCE_INCLUDE_DIR "${PROJECT_SOURCE_DIR}/include")
 # Build kind helpers
 # ------------------------------------------------------------------------------
 
+# Normalizes BUILD_KINDS arguments. An empty list means all build kinds.
 function(_mage_normalize_build_kinds out_var build_kinds_list)
   set(normalized_build_kinds)
 
@@ -94,6 +95,8 @@ endfunction()
 # Dependency helpers
 # ------------------------------------------------------------------------------
 
+# Resolves the LINK_LIBRARIES mini-language used by Mage rules. Each *_ONLY
+# marker controls whether following items are included until the next marker.
 function(_mage_resolve_conditional_link_libraries
     out_var link_libraries_list)
   set(resolved_link_libraries)
@@ -297,6 +300,7 @@ function(_mage_get_common_link_options out_var)
       --target=${MAGE_TARGET_TRIPLE}
       -flto)
 
+    # GPU tests need startup files so llvm-gpu-loader can execute them.
     if(COMMON_LINK_OPTIONS_IS_TEST)
       list(APPEND link_options -startfiles)
     endif()
@@ -557,6 +561,8 @@ endfunction()
 # Object file collection helpers
 # ------------------------------------------------------------------------------
 
+# Performs a DFS over MAGE_DEPS to find object libraries needed by a target.
+# The scratch global properties track recursion state for cycle detection.
 function(_mage_collect_object_lib_targets_from_target out_var target_name)
   get_property(visiting GLOBAL PROPERTY MAGE_OBJECT_LIBS_VISITING)
   get_property(visited GLOBAL PROPERTY MAGE_OBJECT_LIBS_VISITED)
@@ -606,6 +612,7 @@ function(_mage_collect_object_lib_targets_from_target out_var target_name)
   set(${out_var} "${all_object_lib_targets}" PARENT_SCOPE)
 endfunction()
 
+# Collects transitive object-library targets and resets the DFS scratch state.
 function(_mage_collect_object_lib_targets_from_deps out_var deps_list)
   set_property(GLOBAL PROPERTY MAGE_OBJECT_LIBS_VISITING "")
   set_property(GLOBAL PROPERTY MAGE_OBJECT_LIBS_VISITED "")
