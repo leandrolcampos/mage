@@ -37,6 +37,7 @@ function(_mage_get_cxx_compiler_from_llvm_root out_var)
   set(${out_var} "${cxx_compiler}" PARENT_SCOPE)
 endfunction()
 
+# Selects MAGE_LLVM_ROOT/bin/clang++ as the C++ compiler before CXX is enabled.
 function(mage_set_cxx_compiler_from_llvm_root_if_unset)
   if(CMAKE_CXX_COMPILER_LOADED)
     message(FATAL_ERROR
@@ -125,6 +126,7 @@ function(_mage_configure_llvm_components)
     LLVMSupport)
 endfunction()
 
+# Configures LLVM and the support targets used by Mage.
 function(mage_configure_llvm_toolchain)
   _mage_validate_cxx_compiler_from_llvm_root()
 
@@ -155,6 +157,7 @@ function(mage_configure_llvm_toolchain)
   _mage_configure_llvm_components()
 endfunction()
 
+# Configures the LLVM libc target used by Mage targets in the current build.
 function(mage_configure_llvm_libc)
   if(TARGET MageLLVMLibC)
     return()
@@ -209,6 +212,7 @@ function(mage_configure_llvm_libc)
   unset(llvm_libc CACHE)
 endfunction()
 
+# Finds llvm-gpu-loader and records the command used to run GPU tests.
 function(mage_configure_llvm_gpu_loader)
   if((NOT DEFINED MAGE_LLVM_TOOLS_DIR) OR (MAGE_LLVM_TOOLS_DIR STREQUAL ""))
     message(FATAL_ERROR

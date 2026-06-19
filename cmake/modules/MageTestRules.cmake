@@ -13,7 +13,9 @@ include_guard(GLOBAL)
 #     SRCS <list of source files>
 #     [BUILD_KINDS <HOST|GPU>...]
 #     [COMPILE_OPTIONS <list of compile options>]
-#     [LINK_LIBRARIES <list of linking libraries for this target>]
+#     [LINK_LIBRARIES <list of linking libraries for this target>
+#                     [HOST_ONLY|AMDGPU_ONLY|NVPTX_ONLY <items>...]
+#                     [PRIVATE|PUBLIC|INTERFACE <items>...]]
 #     [NO_COMMON_COMPILE_OPTIONS]
 #   )
 function(add_mage_unittest_framework_library target_name)
@@ -49,6 +51,10 @@ function(add_mage_unittest_framework_library target_name)
 
   _mage_resolve_common_compile_options(compile_options ${compile_option_args})
 
+  _mage_resolve_conditional_link_libraries(
+    resolved_link_libraries
+    "${MAGE_UNITTEST_FRAMEWORK_LINK_LIBRARIES}")
+
   add_library(${target_name} STATIC EXCLUDE_FROM_ALL
     ${MAGE_UNITTEST_FRAMEWORK_SRCS})
 
@@ -64,10 +70,10 @@ function(add_mage_unittest_framework_library target_name)
         ${compile_options})
   endif()
 
-  if(MAGE_UNITTEST_FRAMEWORK_LINK_LIBRARIES)
+  if(resolved_link_libraries)
     target_link_libraries(${target_name}
       PRIVATE
-        ${MAGE_UNITTEST_FRAMEWORK_LINK_LIBRARIES})
+        ${resolved_link_libraries})
   endif()
 endfunction()
 
@@ -81,18 +87,32 @@ endfunction()
 #     [DEPENDS <list of add_mage_object_library targets>]
 #     [COMPILE_OPTIONS <list of compile options>]
 #     [LINK_OPTIONS <list of link options>]
-#     [LINK_LIBRARIES <list of linking libraries for this target>]
+#     [LINK_LIBRARIES <list of linking libraries for this target>
+#                     [HOST_ONLY|AMDGPU_ONLY|NVPTX_ONLY <items>...]
+#                     [PRIVATE|PUBLIC|INTERFACE <items>...]]
+#     [DEVICE_IMAGES <list of add_mage_device_image targets>]
 #     [NO_COMMON_COMPILE_OPTIONS]
 #     [NO_COMMON_LINK_OPTIONS]
 #   )
 #
 # COMPILE_OPTIONS applies to SRCS. Sources from DEPENDS are compiled with
 # the options of their object libraries.
+#
+# DEVICE_IMAGES is only valid for host unit tests and requires BUILD_KINDS HOST.
 function(add_mage_unittest target_name)
+  set(mage_unittest_multi_value_args
+    SRCS
+    BUILD_KINDS
+    DEPENDS
+    COMPILE_OPTIONS
+    LINK_OPTIONS
+    LINK_LIBRARIES
+    DEVICE_IMAGES)
+
   cmake_parse_arguments(MAGE_UNITTEST
     "NO_COMMON_COMPILE_OPTIONS;NO_COMMON_LINK_OPTIONS"
     ""
-    "SRCS;BUILD_KINDS;DEPENDS;COMPILE_OPTIONS;LINK_OPTIONS;LINK_LIBRARIES"
+    "${mage_unittest_multi_value_args}"
     ${ARGN})
 
   if(MAGE_UNITTEST_UNPARSED_ARGUMENTS)
@@ -104,6 +124,17 @@ function(add_mage_unittest target_name)
   if(NOT MAGE_UNITTEST_SRCS AND NOT MAGE_UNITTEST_DEPENDS)
     message(FATAL_ERROR
       "add_mage_unittest(${target_name}) requires SRCS and/or DEPENDS")
+  endif()
+
+  if(MAGE_UNITTEST_DEVICE_IMAGES)
+    _mage_normalize_build_kinds(
+      normalized_build_kinds "${MAGE_UNITTEST_BUILD_KINDS}")
+
+    if(NOT normalized_build_kinds STREQUAL "HOST")
+      message(FATAL_ERROR
+        "add_mage_unittest(${target_name}) received DEVICE_IMAGES, "
+        "but DEVICE_IMAGES requires BUILD_KINDS HOST")
+    endif()
   endif()
 
   _mage_build_kinds_include_current_build_kind(
@@ -139,10 +170,11 @@ function(add_mage_unittest target_name)
 
   _mage_resolve_common_link_options(link_options ${link_option_args})
 
-  set(unittest_link_libraries ${MAGE_UNITTEST_LINK_LIBRARIES})
+  _mage_resolve_conditional_link_libraries(
+    resolved_link_libraries "${MAGE_UNITTEST_LINK_LIBRARIES}")
 
   if(TARGET MageUnitTest)
-    list(APPEND unittest_link_libraries MageUnitTest)
+    list(APPEND resolved_link_libraries MageUnitTest)
   endif()
 
   if(NOT TARGET Mage::LLVMLibC)
@@ -150,7 +182,7 @@ function(add_mage_unittest target_name)
       "add_mage_unittest(${target_name}) requires Mage::LLVMLibC")
   endif()
 
-  list(APPEND unittest_link_libraries Mage::LLVMLibC)
+  list(APPEND resolved_link_libraries Mage::LLVMLibC)
 
   _mage_get_all_object_files_from_deps(
     all_object_files "${MAGE_UNITTEST_DEPENDS}")
@@ -175,10 +207,15 @@ function(add_mage_unittest target_name)
         ${link_options})
   endif()
 
-  if(unittest_link_libraries)
+  if(resolved_link_libraries)
     target_link_libraries(${target_name}
       PRIVATE
-        ${unittest_link_libraries})
+        ${resolved_link_libraries})
+  endif()
+
+  if(MAGE_UNITTEST_DEVICE_IMAGES)
+    _mage_add_device_images_to_host_consumer(
+      "${target_name}" "${MAGE_UNITTEST_DEVICE_IMAGES}")
   endif()
 
   set_target_properties(${target_name} PROPERTIES

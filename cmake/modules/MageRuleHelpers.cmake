@@ -2,9 +2,10 @@
 
 include_guard(GLOBAL)
 
-set(MAGE_OBJECT_LIBRARY_TARGET_TYPE "MAGE_OBJECT_LIBRARY")
-set(MAGE_LIBRARY_TARGET_TYPE "MAGE_LIBRARY")
 set(MAGE_BITCODE_LIBRARY_TARGET_TYPE "MAGE_BITCODE_LIBRARY")
+set(MAGE_DEVICE_IMAGE_TARGET_TYPE "MAGE_DEVICE_IMAGE")
+set(MAGE_LIBRARY_TARGET_TYPE "MAGE_LIBRARY")
+set(MAGE_OBJECT_LIBRARY_TARGET_TYPE "MAGE_OBJECT_LIBRARY")
 
 set(MAGE_SOURCE_INCLUDE_DIR "${PROJECT_SOURCE_DIR}/include")
 
@@ -12,6 +13,7 @@ set(MAGE_SOURCE_INCLUDE_DIR "${PROJECT_SOURCE_DIR}/include")
 # Build kind helpers
 # ------------------------------------------------------------------------------
 
+# Normalizes BUILD_KINDS arguments. An empty list means all build kinds.
 function(_mage_normalize_build_kinds out_var build_kinds_list)
   set(normalized_build_kinds)
 
@@ -92,6 +94,45 @@ endfunction()
 # ------------------------------------------------------------------------------
 # Dependency helpers
 # ------------------------------------------------------------------------------
+
+# Resolves the LINK_LIBRARIES mini-language used by Mage rules. Each *_ONLY
+# marker controls whether following items are included until the next marker.
+function(_mage_resolve_conditional_link_libraries
+    out_var link_libraries_list)
+  set(resolved_link_libraries)
+  set(include_current_section ON)
+
+  foreach(link_library IN LISTS link_libraries_list)
+    if(link_library STREQUAL "HOST_ONLY")
+      if(MAGE_BUILD_KIND STREQUAL "HOST")
+        set(include_current_section ON)
+      else()
+        set(include_current_section OFF)
+      endif()
+      continue()
+    elseif(link_library STREQUAL "AMDGPU_ONLY")
+      if(MAGE_TARGET_ARCH_IS_AMDGPU)
+        set(include_current_section ON)
+      else()
+        set(include_current_section OFF)
+      endif()
+      continue()
+    elseif(link_library STREQUAL "NVPTX_ONLY")
+      if(MAGE_TARGET_ARCH_IS_NVPTX)
+        set(include_current_section ON)
+      else()
+        set(include_current_section OFF)
+      endif()
+      continue()
+    endif()
+
+    if(include_current_section)
+      list(APPEND resolved_link_libraries "${link_library}")
+    endif()
+  endforeach()
+
+  set(${out_var} "${resolved_link_libraries}" PARENT_SCOPE)
+endfunction()
 
 function(_mage_require_deps_have_allowed_target_types
     target_name allowed_target_types deps_list)
@@ -259,6 +300,7 @@ function(_mage_get_common_link_options out_var)
       --target=${MAGE_TARGET_TRIPLE}
       -flto)
 
+    # GPU tests need startup files so llvm-gpu-loader can execute them.
     if(COMMON_LINK_OPTIONS_IS_TEST)
       list(APPEND link_options -startfiles)
     endif()
@@ -380,9 +422,147 @@ function(_mage_register_bitcode_target target_name)
 endfunction()
 
 # ------------------------------------------------------------------------------
+# Device image registry helpers
+# ------------------------------------------------------------------------------
+
+function(_mage_get_device_image_output_dir out_var output_subdir)
+  if((NOT DEFINED MAGE_INTERNAL_DEVICE_IMAGE_DIR) OR
+     (MAGE_INTERNAL_DEVICE_IMAGE_DIR STREQUAL ""))
+    message(FATAL_ERROR
+      "MAGE_INTERNAL_DEVICE_IMAGE_DIR must be set before defining device "
+      "images")
+  endif()
+
+  if(output_subdir)
+    if(IS_ABSOLUTE "${output_subdir}")
+      message(FATAL_ERROR
+        "device image OUTPUT_SUBDIR must be relative, got '${output_subdir}'")
+    endif()
+
+    set(output_dir "${MAGE_INTERNAL_DEVICE_IMAGE_DIR}/${output_subdir}")
+  else()
+    set(output_dir "${MAGE_INTERNAL_DEVICE_IMAGE_DIR}")
+  endif()
+
+  set(${out_var} "${output_dir}" PARENT_SCOPE)
+endfunction()
+
+function(_mage_register_device_image target_name output_subdir)
+  get_property(device_image_targets GLOBAL PROPERTY MAGE_DEVICE_IMAGE_TARGETS)
+
+  if("${target_name}" IN_LIST device_image_targets)
+    message(FATAL_ERROR
+      "device image '${target_name}' has already been registered")
+  endif()
+
+  _mage_get_device_image_output_dir(output_dir "${output_subdir}")
+  file(MAKE_DIRECTORY "${output_dir}")
+
+  set_property(GLOBAL APPEND PROPERTY
+    MAGE_DEVICE_IMAGE_TARGETS "${target_name}")
+  set_property(GLOBAL PROPERTY
+    "MAGE_DEVICE_IMAGE_OUTPUT_DIR_FOR_${target_name}" "${output_dir}")
+  set_property(GLOBAL PROPERTY
+    "MAGE_DEVICE_IMAGE_FILE_STEM_FOR_${target_name}" "${target_name}")
+endfunction()
+
+function(_mage_get_device_image_property out_var target_name property_name)
+  get_property(property_value GLOBAL PROPERTY
+    "MAGE_DEVICE_IMAGE_${property_name}_FOR_${target_name}")
+
+  if(NOT property_value)
+    message(FATAL_ERROR
+      "unknown Mage device image '${target_name}'")
+  endif()
+
+  set(${out_var} "${property_value}" PARENT_SCOPE)
+endfunction()
+
+function(_mage_get_registered_device_images out_var)
+  get_property(device_image_targets GLOBAL PROPERTY MAGE_DEVICE_IMAGE_TARGETS)
+
+  if(NOT device_image_targets)
+    set(device_image_targets)
+  endif()
+
+  set(${out_var} "${device_image_targets}" PARENT_SCOPE)
+endfunction()
+
+function(_mage_get_device_image_definition_id out_var target_name)
+  # Convert the CMake target name into a valid C/C++ macro-name fragment.
+  string(REGEX REPLACE "[^A-Za-z0-9]" "_" definition_id "${target_name}")
+  string(TOUPPER "${definition_id}" definition_id)
+
+  if(definition_id MATCHES "^[0-9]")
+    set(definition_id "_${definition_id}")
+  endif()
+
+  set(${out_var} "${definition_id}" PARENT_SCOPE)
+endfunction()
+
+function(_mage_register_device_image_host_consumer
+    device_image_target host_consumer_target)
+  get_property(host_consumer_targets GLOBAL PROPERTY
+    "MAGE_DEVICE_IMAGE_HOST_CONSUMERS_FOR_${device_image_target}")
+
+  if("${host_consumer_target}" IN_LIST host_consumer_targets)
+    message(FATAL_ERROR
+      "host consumer '${host_consumer_target}' has already been registered "
+      "for device image '${device_image_target}'")
+  endif()
+
+  set_property(GLOBAL APPEND PROPERTY
+    "MAGE_DEVICE_IMAGE_HOST_CONSUMERS_FOR_${device_image_target}"
+    "${host_consumer_target}")
+endfunction()
+
+function(_mage_add_existing_gpu_build_device_image_dependencies
+    device_image_target host_consumer_target)
+  get_property(gpu_build_targets GLOBAL PROPERTY
+    "MAGE_GPU_BUILD_DEVICE_IMAGE_TARGETS_FOR_${device_image_target}")
+
+  foreach(gpu_build_target IN LISTS gpu_build_targets)
+    if(TARGET "${gpu_build_target}")
+      add_dependencies("${host_consumer_target}" "${gpu_build_target}")
+    endif()
+  endforeach()
+endfunction()
+
+function(_mage_add_device_images_to_host_consumer
+    host_consumer_target device_image_targets)
+  foreach(device_image_target IN LISTS device_image_targets)
+    _mage_get_device_image_property(
+      output_dir "${device_image_target}" OUTPUT_DIR)
+    _mage_get_device_image_property(
+      file_stem "${device_image_target}" FILE_STEM)
+    _mage_get_device_image_definition_id(
+      definition_id "${device_image_target}")
+
+    target_compile_definitions("${host_consumer_target}"
+      PRIVATE
+        "MAGE_DEVICE_IMAGE_${definition_id}_DIR=\"${output_dir}\""
+        "MAGE_DEVICE_IMAGE_${definition_id}_FILE_STEM=\"${file_stem}\"")
+
+    if(TARGET "${device_image_target}")
+      add_dependencies("${host_consumer_target}" "${device_image_target}")
+    endif()
+
+    _mage_register_device_image_host_consumer(
+      "${device_image_target}" "${host_consumer_target}")
+
+    # Cover the less common order where GPU image targets already exist before
+    # this host consumer is declared.
+    _mage_add_existing_gpu_build_device_image_dependencies(
+      "${device_image_target}" "${host_consumer_target}")
+  endforeach()
+endfunction()
+
+# ------------------------------------------------------------------------------
 # Object file collection helpers
 # ------------------------------------------------------------------------------
 
+# Performs a DFS over MAGE_DEPS to find object libraries needed by a target.
+# The scratch global properties track recursion state for cycle detection.
 function(_mage_collect_object_lib_targets_from_target out_var target_name)
   get_property(visiting GLOBAL PROPERTY MAGE_OBJECT_LIBS_VISITING)
   get_property(visited GLOBAL PROPERTY MAGE_OBJECT_LIBS_VISITED)
@@ -432,6 +612,7 @@ function(_mage_collect_object_lib_targets_from_target out_var target_name)
   set(${out_var} "${all_object_lib_targets}" PARENT_SCOPE)
 endfunction()
 
+# Collects transitive object-library targets and resets the DFS scratch state.
 function(_mage_collect_object_lib_targets_from_deps out_var deps_list)
   set_property(GLOBAL PROPERTY MAGE_OBJECT_LIBS_VISITING "")
   set_property(GLOBAL PROPERTY MAGE_OBJECT_LIBS_VISITED "")

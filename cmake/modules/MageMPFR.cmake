@@ -2,6 +2,7 @@
 
 include_guard(GLOBAL)
 
+# Keeps MPFR-dependent targets configurable, but fails when they are built.
 function(_mage_configure_unavailable_mpfr_target reason)
   add_custom_target(MageMPFRUnavailable
     COMMAND
@@ -13,6 +14,7 @@ function(_mage_configure_unavailable_mpfr_target reason)
   add_dependencies(MageMPFR MageMPFRUnavailable)
 endfunction()
 
+# Configures the MPFR target when MPFR is available for this build.
 function(mage_configure_mpfr)
   if(TARGET MageMPFR)
     return()
