@@ -4,5 +4,6 @@ include_guard(GLOBAL)
 
 include(MageRuleHelpers)
 include(MageLibraryRules)
+include(MageDeviceImageRules)
 include(MageTestRules)
 include(MageToolRules)

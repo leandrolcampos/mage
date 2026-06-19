@@ -9,6 +9,11 @@ if(NOT DEFINED MAGE_INTERNAL_GPU_BUILD)
   set(MAGE_INTERNAL_GPU_BUILD OFF)
 endif()
 
+if((NOT DEFINED MAGE_INTERNAL_DEVICE_IMAGE_DIR) OR
+   (MAGE_INTERNAL_DEVICE_IMAGE_DIR STREQUAL ""))
+  set(MAGE_INTERNAL_DEVICE_IMAGE_DIR "${CMAKE_BINARY_DIR}/device-images")
+endif()
+
 function(mage_normalize_gpu_target_triples)
   set(normalized_gpu_target_triples)
 
@@ -186,6 +191,7 @@ function(mage_add_gpu_build gpu_target_triple)
   set(gpu_build_cmake_args
     "-DMAGE_INTERNAL_GPU_BUILD:BOOL=ON"
     "-DMAGE_INTERNAL_TARGET_TRIPLE:STRING=${gpu_target_triple}"
+    "-DMAGE_INTERNAL_DEVICE_IMAGE_DIR:PATH=${MAGE_INTERNAL_DEVICE_IMAGE_DIR}"
     "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
     "-DCMAKE_CXX_COMPILER:FILEPATH=${CMAKE_CXX_COMPILER}"
     "-DBUILD_TESTING:BOOL=${BUILD_TESTING}"
@@ -232,6 +238,26 @@ function(mage_add_gpu_build gpu_target_triple)
     USES_TERMINAL)
 
   add_dependencies(mage-all "mage-${gpu_target_triple}")
+
+  add_custom_target("mage-${gpu_target_triple}-device-images")
+
+  _mage_add_gpu_build_device_image_targets(
+    gpu_build_device_image_targets
+    "${gpu_target_triple}"
+    "${gpu_build_binary_dir}"
+    "${gpu_build_config_target}")
+
+  if(gpu_build_device_image_targets)
+    add_dependencies(
+      "mage-${gpu_target_triple}-device-images"
+      ${gpu_build_device_image_targets})
+  endif()
+
+  if(TARGET mage-device-images AND gpu_build_device_image_targets)
+    add_dependencies(
+      mage-device-images
+      "mage-${gpu_target_triple}-device-images")
+  endif()
 
   if(BUILD_TESTING)
     add_custom_target("check-mage-${gpu_target_triple}"

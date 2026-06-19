@@ -90,17 +90,29 @@ endfunction()
 #     [LINK_LIBRARIES <list of linking libraries for this target>
 #                     [HOST_ONLY|AMDGPU_ONLY|NVPTX_ONLY <items>...]
 #                     [PRIVATE|PUBLIC|INTERFACE <items>...]]
+#     [DEVICE_IMAGES <list of add_mage_device_image targets>]
 #     [NO_COMMON_COMPILE_OPTIONS]
 #     [NO_COMMON_LINK_OPTIONS]
 #   )
 #
 # COMPILE_OPTIONS applies to SRCS. Sources from DEPENDS are compiled with
 # the options of their object libraries.
+#
+# DEVICE_IMAGES is only valid for host unit tests and requires BUILD_KINDS HOST.
 function(add_mage_unittest target_name)
+  set(mage_unittest_multi_value_args
+    SRCS
+    BUILD_KINDS
+    DEPENDS
+    COMPILE_OPTIONS
+    LINK_OPTIONS
+    LINK_LIBRARIES
+    DEVICE_IMAGES)
+
   cmake_parse_arguments(MAGE_UNITTEST
     "NO_COMMON_COMPILE_OPTIONS;NO_COMMON_LINK_OPTIONS"
     ""
-    "SRCS;BUILD_KINDS;DEPENDS;COMPILE_OPTIONS;LINK_OPTIONS;LINK_LIBRARIES"
+    "${mage_unittest_multi_value_args}"
     ${ARGN})
 
   if(MAGE_UNITTEST_UNPARSED_ARGUMENTS)
@@ -112,6 +124,17 @@ function(add_mage_unittest target_name)
   if(NOT MAGE_UNITTEST_SRCS AND NOT MAGE_UNITTEST_DEPENDS)
     message(FATAL_ERROR
       "add_mage_unittest(${target_name}) requires SRCS and/or DEPENDS")
+  endif()
+
+  if(MAGE_UNITTEST_DEVICE_IMAGES)
+    _mage_normalize_build_kinds(
+      normalized_build_kinds "${MAGE_UNITTEST_BUILD_KINDS}")
+
+    if(NOT normalized_build_kinds STREQUAL "HOST")
+      message(FATAL_ERROR
+        "add_mage_unittest(${target_name}) received DEVICE_IMAGES, "
+        "but DEVICE_IMAGES requires BUILD_KINDS HOST")
+    endif()
   endif()
 
   _mage_build_kinds_include_current_build_kind(
@@ -188,6 +211,11 @@ function(add_mage_unittest target_name)
     target_link_libraries(${target_name}
       PRIVATE
         ${resolved_link_libraries})
+  endif()
+
+  if(MAGE_UNITTEST_DEVICE_IMAGES)
+    _mage_add_device_images_to_host_consumer(
+      "${target_name}" "${MAGE_UNITTEST_DEVICE_IMAGES}")
   endif()
 
   set_target_properties(${target_name} PROPERTIES

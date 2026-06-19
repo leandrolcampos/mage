@@ -9,5 +9,8 @@ add_dependencies(mage mage-archives)
 add_custom_target(mage-bitcode-libraries)
 add_dependencies(mage mage-bitcode-libraries)
 
+add_custom_target(mage-device-images)
+add_dependencies(mage mage-device-images)
+
 add_subdirectory(Support)
 add_subdirectory(Testing)
