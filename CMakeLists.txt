@@ -41,6 +41,8 @@ set(MAGE_GPU_TEST_PARALLELISM "1" CACHE STRING
   "Maximum number of GPU unit tests to run in parallel")
 
 include(MageBuild)
+include(MageCUDA)
+include(MageROCm)
 include(MageMPFR)
 include(MageRules)
 
@@ -49,6 +51,8 @@ mage_configure_llvm_toolchain()
 mage_resolve_current_build_context()
 
 mage_configure_llvm_libc()
+mage_configure_cuda()
+mage_configure_rocm()
 mage_configure_mpfr()
 
 add_subdirectory(lib)
