@@ -32,11 +32,8 @@ public:
 
   [[nodiscard]] virtual DeviceAPI getAPI() const = 0;
 
-  [[nodiscard]] llvm::Expected<int> getAPIVersion() const { return APIVersion; }
-
-  [[nodiscard]] llvm::Expected<int> getDeviceCount() const {
-    return DeviceCount;
-  }
+  [[nodiscard]] llvm::Expected<int> getAPIVersion() const;
+  [[nodiscard]] llvm::Expected<int> getDeviceCount() const;
 
 protected:
   Backend(int APIVersion, int DeviceCount)

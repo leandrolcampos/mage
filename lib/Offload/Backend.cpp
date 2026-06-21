@@ -28,6 +28,14 @@
 
 using namespace mage;
 
+llvm::Expected<int> detail::Backend::getAPIVersion() const {
+  return APIVersion;
+}
+
+llvm::Expected<int> detail::Backend::getDeviceCount() const {
+  return DeviceCount;
+}
+
 bool detail::isBackendEnabled(DeviceAPI API) {
   switch (API) {
   case DeviceAPI::CUDA:
