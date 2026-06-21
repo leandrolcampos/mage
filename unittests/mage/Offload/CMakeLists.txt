@@ -1,0 +1,9 @@
+add_mage_unittest(
+  DeviceContextTest
+  SRCS
+    DeviceContextTest.cpp
+  BUILD_KINDS
+    HOST
+  LINK_LIBRARIES
+    MageOffload
+)

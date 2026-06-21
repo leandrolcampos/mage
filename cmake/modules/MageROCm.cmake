@@ -62,16 +62,20 @@ function(_mage_configure_hip_runtime)
     return()
   endif()
 
-  if(TARGET hip::host AND DEFINED HIP_PLATFORM AND HIP_PLATFORM STREQUAL "amd")
+  if(TARGET hip::amdhip64 AND DEFINED HIP_PLATFORM AND
+     HIP_PLATFORM STREQUAL "amd")
+    target_compile_definitions(MageHIPRuntime INTERFACE
+      __HIP_PLATFORM_AMD__=1)
+
     target_link_libraries(MageHIPRuntime INTERFACE
-      hip::host)
+      hip::amdhip64)
 
     set(MAGE_HIP_RUNTIME_FOUND ON CACHE INTERNAL
       "Whether the HIP runtime is available in the current build" FORCE)
     set(MAGE_HIP_BACKEND_ENABLED ON CACHE INTERNAL
       "Whether the HIP backend is enabled in the current build" FORCE)
   else()
-    if(TARGET hip::host AND DEFINED HIP_PLATFORM)
+    if(DEFINED HIP_PLATFORM AND NOT HIP_PLATFORM STREQUAL "amd")
       message(STATUS
         "HIP package is configured for platform '${HIP_PLATFORM}', not "
         "'amd'; AMD HIP runtime is unavailable")
