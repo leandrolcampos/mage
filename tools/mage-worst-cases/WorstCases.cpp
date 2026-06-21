@@ -66,6 +66,7 @@ static llvm::StringRef getRoundingGroupName(RoundingGroupTy RoundingGroup) {
   case RoundingGroupTy::Directed:
     return "directed";
   }
+  // TODO: Use MAGE_UNREACHABLE once available.
   llvm_unreachable("unknown rounding group");
 }
 
