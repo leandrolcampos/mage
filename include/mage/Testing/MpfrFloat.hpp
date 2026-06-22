@@ -32,6 +32,7 @@
 #include <limits.h>
 #include <new>
 #include <stddef.h>
+#include <type_traits>
 #include <utility>
 
 namespace mage {
@@ -117,7 +118,7 @@ public:
 private:
   template <size_t N, typename Function>
   friend void withInlineMpfrFloats(unsigned Precision, RoundingMode Rounding,
-                                   Function &&Fn);
+                                   Function &&Fn) noexcept;
 
   MpfrFloat(unsigned Precision, mpfr_rnd_t MpfrRounding,
             void *Storage) noexcept;
@@ -129,9 +130,17 @@ private:
 
 namespace detail {
 
+template <size_t> using MpfrFloatRef = MpfrFloat &;
+
+template <typename Function, size_t... Indices>
+[[nodiscard]] constexpr bool
+isNothrowInvocableWithMpfrFloats(std::index_sequence<Indices...>) noexcept {
+  return std::is_nothrow_invocable_v<Function, MpfrFloatRef<Indices>...>;
+}
+
 template <typename Function, size_t N, size_t... Indices>
 void invokeWithMpfrFloats(Function &&Fn, MpfrFloat *const (&Values)[N],
-                          std::index_sequence<Indices...>) {
+                          std::index_sequence<Indices...>) noexcept {
   std::forward<Function>(Fn)(*Values[Indices]...);
 }
 
@@ -143,8 +152,11 @@ void invokeWithMpfrFloats(Function &&Fn, MpfrFloat *const (&Values)[N],
 /// invocation.
 template <size_t N, typename Function>
 void withInlineMpfrFloats(unsigned Precision, RoundingMode Rounding,
-                          Function &&Fn) {
+                          Function &&Fn) noexcept {
   static_assert(N > 0, "N must be greater than zero");
+  static_assert(detail::isNothrowInvocableWithMpfrFloats<Function &&>(
+                    std::make_index_sequence<N>{}),
+                "Fn must be noexcept");
 
   if constexpr (N > 0) {
     assert((Precision >= MPFR_PREC_MIN) &&
@@ -176,9 +188,7 @@ void withInlineMpfrFloats(unsigned Precision, RoundingMode Rounding,
     detail::invokeWithMpfrFloats(std::forward<Function>(Fn), Values,
                                  std::make_index_sequence<N>{});
 
-    // Objects created with placement new must be destroyed explicitly. Here we
-    // assume that the callback does not throw because otherwise the values are
-    // not destroyed.
+    // Objects created with placement new must be destroyed explicitly.
     for (size_t I = N; I > 0; --I)
       Values[I - 1]->~MpfrFloat();
   }

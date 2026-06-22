@@ -128,7 +128,7 @@ MAGE_TEST(MpfrFloatTest, ProvidesIndependentInlineValues) {
   mpfr::withInlineMpfrFloats<3>(
       128, RoundingMode::Downward,
       [this, &Called](mpfr::MpfrFloat &Output, mpfr::MpfrFloat &LHS,
-                      mpfr::MpfrFloat &RHS) {
+                      mpfr::MpfrFloat &RHS) noexcept {
         Called = true;
 
         MAGE_EXPECT_EQ(Output.getPrecision(), 128U);
