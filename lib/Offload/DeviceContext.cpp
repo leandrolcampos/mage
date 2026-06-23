@@ -15,9 +15,16 @@
 
 #include "Backend.hpp"
 
+#include "llvm/Support/Error.h"
 #include "llvm/Support/ErrorHandling.h"
 
-const char *mage::toString(DeviceAPI API) {
+#include <assert.h>
+#include <memory>
+#include <utility>
+
+using namespace mage;
+
+const char *mage::toString(DeviceAPI API) noexcept {
   switch (API) {
   case DeviceAPI::CUDA:
     return "CUDA";
@@ -37,4 +44,67 @@ llvm::Expected<int> mage::getDeviceCount(DeviceAPI API) {
     return BackendOrErr.takeError();
 
   return (*BackendOrErr).getDeviceCount();
+}
+
+DeviceContext::DeviceContext(
+    std::unique_ptr<detail::DeviceContextImpl> Impl) noexcept
+    : Impl(std::move(Impl)) {
+  assert(this->Impl && "DeviceContext requires an implementation");
+}
+
+DeviceContext::~DeviceContext() noexcept = default;
+
+DeviceContext::DeviceContext(DeviceContext &&) noexcept = default;
+
+DeviceContext &DeviceContext::operator=(DeviceContext &&) noexcept = default;
+
+llvm::Expected<DeviceContext> DeviceContext::create(DeviceAPI API,
+                                                    int DeviceID) {
+  auto BackendOrErr = detail::getBackend(API);
+  if (!BackendOrErr)
+    return BackendOrErr.takeError();
+
+  detail::Backend &Backend = *BackendOrErr;
+
+  auto DeviceCount = Backend.getDeviceCount();
+  if (DeviceID < 0 || DeviceID >= DeviceCount)
+    return llvm::createStringError("device ID %d is out of range for the %s "
+                                   "API; available device count is %d",
+                                   DeviceID, toString(API), DeviceCount);
+
+  auto ImplOrErr = Backend.createDeviceContextImpl(DeviceID);
+  if (!ImplOrErr)
+    return ImplOrErr.takeError();
+
+  return DeviceContext(std::move(*ImplOrErr));
+}
+
+DeviceAPI DeviceContext::getAPI() const noexcept {
+  assert(Impl && "cannot use a moved-from DeviceContext");
+  return Impl->getAPI();
+}
+
+int DeviceContext::getID() const noexcept {
+  assert(Impl && "cannot use a moved-from DeviceContext");
+  return Impl->getID();
+}
+
+llvm::Expected<std::string> DeviceContext::getName() const {
+  assert(Impl && "cannot use a moved-from DeviceContext");
+  return Impl->getName();
+}
+
+llvm::Expected<std::string> DeviceContext::getArchitecture() const {
+  assert(Impl && "cannot use a moved-from DeviceContext");
+  return Impl->getArchitecture();
+}
+
+llvm::Expected<std::pair<size_t, size_t>> DeviceContext::getMemoryInfo() const {
+  assert(Impl && "cannot use a moved-from DeviceContext");
+  return Impl->getMemoryInfo();
+}
+
+llvm::Error DeviceContext::synchronize() {
+  assert(Impl && "cannot use a moved-from DeviceContext");
+  return Impl->synchronize();
 }

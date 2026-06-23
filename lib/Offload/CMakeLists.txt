@@ -3,6 +3,7 @@ set(offload_sources
   DeviceContext.cpp)
 
 set(offload_link_libraries
+  MageSupport
   Mage::LLVMSupport)
 
 set(offload_include_directories
