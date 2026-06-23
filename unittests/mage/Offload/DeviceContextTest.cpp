@@ -37,3 +37,57 @@ MAGE_TEST(DeviceContextTest, GetsDeviceCountForSupportedAPIs) {
   ExpectDeviceCountIsNonNegativeOrUnavailable(DeviceAPI::CUDA);
   ExpectDeviceCountIsNonNegativeOrUnavailable(DeviceAPI::HIP);
 }
+
+MAGE_TEST(DeviceContextTest, RejectsInvalidDeviceIDs) {
+  auto ExpectInvalidDeviceIDIsRejected = [&](DeviceAPI API) {
+    auto NegativeContextOrErr = DeviceContext::create(API, -1);
+    MAGE_EXPECT_FALSE(static_cast<bool>(NegativeContextOrErr));
+    if (!NegativeContextOrErr)
+      llvm::consumeError(NegativeContextOrErr.takeError());
+
+    auto CountOrErr = getDeviceCount(API);
+    if (!CountOrErr) {
+      llvm::consumeError(CountOrErr.takeError());
+      return;
+    }
+
+    auto PastEndContextOrErr = DeviceContext::create(API, *CountOrErr);
+    MAGE_EXPECT_FALSE(static_cast<bool>(PastEndContextOrErr));
+    if (!PastEndContextOrErr)
+      llvm::consumeError(PastEndContextOrErr.takeError());
+  };
+
+  ExpectInvalidDeviceIDIsRejected(DeviceAPI::CUDA);
+  ExpectInvalidDeviceIDIsRejected(DeviceAPI::HIP);
+}
+
+MAGE_TEST(DeviceContextTest, GetsNonEmptyDeviceNames) {
+  auto ExpectDeviceNamesAreNonEmpty = [&](DeviceAPI API) {
+    auto CountOrErr = getDeviceCount(API);
+    if (!CountOrErr) {
+      llvm::consumeError(CountOrErr.takeError());
+      return;
+    }
+
+    for (int DeviceID = 0; DeviceID < *CountOrErr; ++DeviceID) {
+      auto ContextOrErr = DeviceContext::create(API, DeviceID);
+      if (!ContextOrErr) {
+        llvm::consumeError(ContextOrErr.takeError());
+        MAGE_EXPECT_TRUE(false);
+        continue;
+      }
+
+      auto NameOrErr = ContextOrErr->getName();
+      if (!NameOrErr) {
+        llvm::consumeError(NameOrErr.takeError());
+        MAGE_EXPECT_TRUE(false);
+        continue;
+      }
+
+      MAGE_EXPECT_FALSE(NameOrErr->empty());
+    }
+  };
+
+  ExpectDeviceNamesAreNonEmpty(DeviceAPI::CUDA);
+  ExpectDeviceNamesAreNonEmpty(DeviceAPI::HIP);
+}
