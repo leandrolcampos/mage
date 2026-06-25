@@ -17,6 +17,7 @@
 
 #include "mage/Support/Error.hpp"
 
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/FormatVariadic.h"
@@ -26,8 +27,10 @@
 #include <hip/hip_runtime_api.h>
 
 #include <memory>
+#include <mutex>
 #include <string>
 #include <utility>
+#include <vector>
 
 using namespace mage;
 
@@ -108,6 +111,29 @@ private:
   bool IsActive = true;
 };
 
+class HIPDeviceState final : public detail::DeviceState {
+public:
+  [[nodiscard]] static llvm::Expected<std::shared_ptr<HIPDeviceState>>
+  create(int DeviceID) {
+    auto PropertiesOrErr = getDeviceProperties(DeviceID);
+    if (!PropertiesOrErr)
+      return PropertiesOrErr.takeError();
+
+    std::string Name(PropertiesOrErr->name);
+
+    std::string Architecture(PropertiesOrErr->gcnArchName);
+    Architecture = Architecture.substr(0, Architecture.find(':'));
+
+    return std::shared_ptr<HIPDeviceState>(
+        new HIPDeviceState(DeviceID, std::move(Name), std::move(Architecture)));
+  }
+
+private:
+  HIPDeviceState(int DeviceID, std::string Name, std::string Architecture)
+      : DeviceState(DeviceAPI::HIP, DeviceID, std::move(Name),
+                    std::move(Architecture)) {}
+};
+
 class HIPDeviceContextImpl final : public detail::DeviceContextImpl {
 public:
   ~HIPDeviceContextImpl() noexcept override {
@@ -117,89 +143,81 @@ public:
 
   [[nodiscard]] static llvm::Expected<
       std::unique_ptr<detail::DeviceContextImpl>>
-  create(int DeviceID) {
-    auto GuardOrErr = CurrentDeviceGuard::create(DeviceID);
+  create(std::shared_ptr<HIPDeviceState> Device) {
+    auto GuardOrErr = CurrentDeviceGuard::create(Device->getID());
     if (!GuardOrErr)
       return GuardOrErr.takeError();
 
     hipStream_t Stream = nullptr;
     if (auto Err = check(hipStreamCreateWithFlags(&Stream, hipStreamDefault),
-                         "error in hipStreamCreate for device %d", DeviceID))
+                         "error in hipStreamCreateWithFlags for device %d",
+                         Device->getID()))
       return Err;
 
     return std::unique_ptr<detail::DeviceContextImpl>(
-        new HIPDeviceContextImpl(DeviceID, Stream));
+        new HIPDeviceContextImpl(std::move(Device), Stream));
   }
 
   [[nodiscard]] DeviceAPI getAPI() const noexcept override {
-    return DeviceAPI::HIP;
+    return Device->getAPI();
   }
 
-  [[nodiscard]] int getID() const noexcept override { return DeviceID; }
+  [[nodiscard]] int getID() const noexcept override { return Device->getID(); }
 
-  [[nodiscard]] llvm::Expected<std::string> getName() const override {
-    auto PropertiesOrErr = getDeviceProperties(DeviceID);
-    if (!PropertiesOrErr)
-      return PropertiesOrErr.takeError();
-
-    return std::string(PropertiesOrErr->name);
+  [[nodiscard]] llvm::StringRef getName() const override {
+    return Device->getName();
   }
 
-  [[nodiscard]] llvm::Expected<std::string> getArchitecture() const override {
-    auto PropertiesOrErr = getDeviceProperties(DeviceID);
-    if (!PropertiesOrErr)
-      return PropertiesOrErr.takeError();
-
-    std::string ArchName(PropertiesOrErr->gcnArchName);
-    if (ArchName.empty())
-      return llvm::createStringError(
-          "missing HIP architecture name for device %d", DeviceID);
-
-    return ArchName.substr(0, ArchName.find(':'));
+  [[nodiscard]] llvm::StringRef getArchitecture() const override {
+    return Device->getArchitecture();
   }
 
   [[nodiscard]] llvm::Expected<std::pair<size_t, size_t>>
   getMemoryInfo() const override {
-    auto GuardOrErr = CurrentDeviceGuard::create(DeviceID);
+    auto GuardOrErr = CurrentDeviceGuard::create(Device->getID());
     if (!GuardOrErr)
       return GuardOrErr.takeError();
 
     size_t Free = 0;
     size_t Total = 0;
-    if (auto Err = check(hipMemGetInfo(&Free, &Total),
-                         "error in hipMemGetInfo for device %d", DeviceID))
+    if (auto Err =
+            check(hipMemGetInfo(&Free, &Total),
+                  "error in hipMemGetInfo for device %d", Device->getID()))
       return Err;
 
     return std::pair<size_t, size_t>(Free, Total);
   }
 
   llvm::Error synchronize() override {
-    auto GuardOrErr = CurrentDeviceGuard::create(DeviceID);
+    auto GuardOrErr = CurrentDeviceGuard::create(Device->getID());
     if (!GuardOrErr)
       return GuardOrErr.takeError();
 
     return check(hipStreamSynchronize(Stream),
-                 "error in hipStreamSynchronize for device %d", DeviceID);
+                 "error in hipStreamSynchronize for device %d",
+                 Device->getID());
   }
 
 private:
-  HIPDeviceContextImpl(int DeviceID, hipStream_t Stream) noexcept
-      : DeviceID(DeviceID), Stream(Stream) {}
+  HIPDeviceContextImpl(std::shared_ptr<HIPDeviceState> Device,
+                       hipStream_t Stream) noexcept
+      : Device(std::move(Device)), Stream(Stream) {}
 
   llvm::Error destroyStream() {
-    auto GuardOrErr = CurrentDeviceGuard::create(DeviceID);
+    auto GuardOrErr = CurrentDeviceGuard::create(Device->getID());
     if (!GuardOrErr)
       return GuardOrErr.takeError();
 
-    if (auto Err = check(hipStreamDestroy(Stream),
-                         "error in hipStreamDestroy for device %d", DeviceID))
+    if (auto Err =
+            check(hipStreamDestroy(Stream),
+                  "error in hipStreamDestroy for device %d", Device->getID()))
       return Err;
 
     Stream = nullptr;
     return llvm::Error::success();
   }
 
-  int DeviceID;
+  std::shared_ptr<HIPDeviceState> Device;
   hipStream_t Stream;
 };
 
@@ -249,12 +267,34 @@ public:
 
   [[nodiscard]] llvm::Expected<std::unique_ptr<detail::DeviceContextImpl>>
   createDeviceContextImpl(int DeviceID) override {
-    return HIPDeviceContextImpl::create(DeviceID);
+    auto DeviceOrErr = getOrCreateDeviceState(DeviceID);
+    if (!DeviceOrErr)
+      return DeviceOrErr.takeError();
+
+    return HIPDeviceContextImpl::create(std::move(*DeviceOrErr));
   }
 
 private:
-  HIPBackend(int APIVersion, int DeviceCount) noexcept
-      : Backend(APIVersion, DeviceCount) {}
+  HIPBackend(int APIVersion, int DeviceCount)
+      : Backend(APIVersion, DeviceCount), Devices(DeviceCount) {}
+
+  [[nodiscard]] llvm::Expected<std::shared_ptr<HIPDeviceState>>
+  getOrCreateDeviceState(int DeviceID) {
+    std::lock_guard<std::mutex> Lock(DevicesMutex);
+
+    if (auto Device = Devices[DeviceID].lock())
+      return Device;
+
+    auto DeviceOrErr = HIPDeviceState::create(DeviceID);
+    if (!DeviceOrErr)
+      return DeviceOrErr.takeError();
+
+    Devices[DeviceID] = *DeviceOrErr;
+    return *DeviceOrErr;
+  }
+
+  std::mutex DevicesMutex;
+  std::vector<std::weak_ptr<HIPDeviceState>> Devices;
 };
 
 } // namespace

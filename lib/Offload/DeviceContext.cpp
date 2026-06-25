@@ -20,6 +20,7 @@
 
 #include <assert.h>
 #include <memory>
+#include <string>
 #include <utility>
 
 using namespace mage;
@@ -89,14 +90,14 @@ int DeviceContext::getID() const noexcept {
   return Impl->getID();
 }
 
-llvm::Expected<std::string> DeviceContext::getName() const {
+std::string DeviceContext::getName() const {
   assert(Impl && "cannot use a moved-from DeviceContext");
-  return Impl->getName();
+  return Impl->getName().str();
 }
 
-llvm::Expected<std::string> DeviceContext::getArchitecture() const {
+std::string DeviceContext::getArchitecture() const {
   assert(Impl && "cannot use a moved-from DeviceContext");
-  return Impl->getArchitecture();
+  return Impl->getArchitecture().str();
 }
 
 llvm::Expected<std::pair<size_t, size_t>> DeviceContext::getMemoryInfo() const {

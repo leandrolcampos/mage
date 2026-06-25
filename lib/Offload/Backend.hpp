@@ -16,6 +16,7 @@
 
 #include "mage/Offload/DeviceContext.hpp"
 
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Error.h"
 
 #include <memory>
@@ -25,6 +26,31 @@
 
 namespace mage {
 namespace detail {
+
+class DeviceState {
+public:
+  virtual ~DeviceState() noexcept;
+
+  DeviceState(const DeviceState &) = delete;
+  DeviceState &operator=(const DeviceState &) = delete;
+  DeviceState(DeviceState &&) = delete;
+  DeviceState &operator=(DeviceState &&) = delete;
+
+  [[nodiscard]] DeviceAPI getAPI() const noexcept;
+  [[nodiscard]] int getID() const noexcept;
+  [[nodiscard]] llvm::StringRef getName() const noexcept;
+  [[nodiscard]] llvm::StringRef getArchitecture() const noexcept;
+
+protected:
+  DeviceState(DeviceAPI API, int DeviceID, std::string Name,
+              std::string Architecture);
+
+private:
+  DeviceAPI API;
+  int DeviceID;
+  std::string Name;
+  std::string Architecture;
+};
 
 class DeviceContextImpl {
 public:
@@ -37,8 +63,8 @@ public:
 
   [[nodiscard]] virtual DeviceAPI getAPI() const noexcept = 0;
   [[nodiscard]] virtual int getID() const noexcept = 0;
-  [[nodiscard]] virtual llvm::Expected<std::string> getName() const = 0;
-  [[nodiscard]] virtual llvm::Expected<std::string> getArchitecture() const = 0;
+  [[nodiscard]] virtual llvm::StringRef getName() const = 0;
+  [[nodiscard]] virtual llvm::StringRef getArchitecture() const = 0;
   [[nodiscard]] virtual llvm::Expected<std::pair<size_t, size_t>>
   getMemoryInfo() const = 0;
 

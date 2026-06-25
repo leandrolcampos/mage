@@ -64,10 +64,10 @@ public:
   [[nodiscard]] int getID() const noexcept;
 
   /// Returns an identifier string for the underlying device.
-  [[nodiscard]] llvm::Expected<std::string> getName() const;
+  [[nodiscard]] std::string getName() const;
 
   /// Returns the architecture name for the underlying device.
-  [[nodiscard]] llvm::Expected<std::string> getArchitecture() const;
+  [[nodiscard]] std::string getArchitecture() const;
 
   /// Returns the free and total memory size for the underlying device.
   [[nodiscard]] llvm::Expected<std::pair<size_t, size_t>> getMemoryInfo() const;

@@ -17,6 +17,7 @@
 
 #include "mage/Support/Error.hpp"
 
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/FormatVariadic.h"
@@ -26,8 +27,10 @@
 #include <cuda.h>
 
 #include <memory>
+#include <mutex>
 #include <string>
 #include <utility>
+#include <vector>
 
 using namespace mage;
 
@@ -78,6 +81,39 @@ retainPrimaryContext(int DeviceID, CUdevice Device) {
                "error in cuDevicePrimaryCtxRelease for device %d", DeviceID);
 }
 
+[[nodiscard]] static llvm::Expected<std::string>
+getDeviceName(int DeviceID, CUdevice Device) {
+  char Name[256] = {};
+  if (auto Err = check(cuDeviceGetName(Name, sizeof(Name), Device),
+                       "error in cuDeviceGetName for device %d", DeviceID))
+    return Err;
+
+  return std::string(Name);
+}
+
+[[nodiscard]] static llvm::Expected<std::string>
+getDeviceArchitecture(int DeviceID, CUdevice Device) {
+  int Major = 0;
+  if (auto Err = check(
+          cuDeviceGetAttribute(
+              &Major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, Device),
+          "error in cuDeviceGetAttribute for the compute capability major "
+          "of device %d",
+          DeviceID))
+    return Err;
+
+  int Minor = 0;
+  if (auto Err = check(
+          cuDeviceGetAttribute(
+              &Minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, Device),
+          "error in cuDeviceGetAttribute for the compute capability minor "
+          "of device %d",
+          DeviceID))
+    return Err;
+
+  return llvm::formatv("sm_{0}{1}", Major, Minor).str();
+}
+
 namespace {
 
 class CurrentContextGuard {
@@ -122,18 +158,14 @@ private:
   bool IsActive = true;
 };
 
-class CUDADeviceContextImpl final : public detail::DeviceContextImpl {
+class CUDADeviceState final : public detail::DeviceState {
 public:
-  ~CUDADeviceContextImpl() noexcept override {
-    if (Stream)
-      consumeErrorWithDebugLogging(destroyStream());
-
+  ~CUDADeviceState() noexcept override {
     if (Context)
-      consumeErrorWithDebugLogging(releasePrimaryContext(DeviceID, Device));
+      consumeErrorWithDebugLogging(releasePrimaryContext(getID(), Device));
   }
 
-  [[nodiscard]] static llvm::Expected<
-      std::unique_ptr<detail::DeviceContextImpl>>
+  [[nodiscard]] static llvm::Expected<std::shared_ptr<CUDADeviceState>>
   create(int DeviceID) {
     auto DeviceOrErr = getDevice(DeviceID);
     if (!DeviceOrErr)
@@ -147,110 +179,125 @@ public:
 
     CUcontext Context = *ContextOrErr;
 
-    auto GuardOrErr = CurrentContextGuard::create(Context);
-    if (!GuardOrErr) {
-      auto Err = GuardOrErr.takeError();
+    auto NameOrErr = getDeviceName(DeviceID, Device);
+    if (!NameOrErr) {
+      auto Err = NameOrErr.takeError();
       if (auto ReleaseErr = releasePrimaryContext(DeviceID, Device))
         return llvm::joinErrors(std::move(Err), std::move(ReleaseErr));
 
       return Err;
     }
+
+    auto ArchitectureOrErr = getDeviceArchitecture(DeviceID, Device);
+    if (!ArchitectureOrErr) {
+      auto Err = ArchitectureOrErr.takeError();
+      if (auto ReleaseErr = releasePrimaryContext(DeviceID, Device))
+        return llvm::joinErrors(std::move(Err), std::move(ReleaseErr));
+
+      return Err;
+    }
+
+    return std::shared_ptr<CUDADeviceState>(
+        new CUDADeviceState(DeviceID, Device, Context, std::move(*NameOrErr),
+                            std::move(*ArchitectureOrErr)));
+  }
+
+  [[nodiscard]] CUcontext getContext() const noexcept { return Context; }
+
+private:
+  CUDADeviceState(int DeviceID, CUdevice Device, CUcontext Context,
+                  std::string Name, std::string Architecture)
+      : DeviceState(DeviceAPI::CUDA, DeviceID, std::move(Name),
+                    std::move(Architecture)),
+        Device(Device), Context(Context) {}
+
+  CUdevice Device;
+  CUcontext Context;
+};
+
+class CUDADeviceContextImpl final : public detail::DeviceContextImpl {
+public:
+  ~CUDADeviceContextImpl() noexcept override {
+    if (Stream)
+      consumeErrorWithDebugLogging(destroyStream());
+  }
+
+  [[nodiscard]] static llvm::Expected<
+      std::unique_ptr<detail::DeviceContextImpl>>
+  create(std::shared_ptr<CUDADeviceState> Device) {
+    auto GuardOrErr = CurrentContextGuard::create(Device->getContext());
+    if (!GuardOrErr)
+      return GuardOrErr.takeError();
 
     CUstream Stream = nullptr;
-    if (auto Err = check(cuStreamCreate(&Stream, CU_STREAM_DEFAULT),
-                         "error in cuStreamCreate for device %d", DeviceID)) {
-      if (auto ReleaseErr = releasePrimaryContext(DeviceID, Device))
-        return llvm::joinErrors(std::move(Err), std::move(ReleaseErr));
-
+    if (auto Err =
+            check(cuStreamCreate(&Stream, CU_STREAM_DEFAULT),
+                  "error in cuStreamCreate for device %d", Device->getID()))
       return Err;
-    }
 
     return std::unique_ptr<detail::DeviceContextImpl>(
-        new CUDADeviceContextImpl(DeviceID, Device, Context, Stream));
+        new CUDADeviceContextImpl(std::move(Device), Stream));
   }
 
   [[nodiscard]] DeviceAPI getAPI() const noexcept override {
-    return DeviceAPI::CUDA;
+    return Device->getAPI();
   }
 
-  [[nodiscard]] int getID() const noexcept override { return DeviceID; }
+  [[nodiscard]] int getID() const noexcept override { return Device->getID(); }
 
-  [[nodiscard]] llvm::Expected<std::string> getName() const override {
-    char Name[256] = {};
-    if (auto Err = check(cuDeviceGetName(Name, sizeof(Name), Device),
-                         "error in cuDeviceGetName for device %d", DeviceID))
-      return Err;
-
-    return std::string(Name);
+  [[nodiscard]] llvm::StringRef getName() const override {
+    return Device->getName();
   }
 
-  [[nodiscard]] llvm::Expected<std::string> getArchitecture() const override {
-    int Major = 0;
-    if (auto Err = check(
-            cuDeviceGetAttribute(
-                &Major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, Device),
-            "error in cuDeviceGetAttribute for the compute capability major "
-            "of device %d",
-            DeviceID))
-      return Err;
-
-    int Minor = 0;
-    if (auto Err = check(
-            cuDeviceGetAttribute(
-                &Minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, Device),
-            "error in cuDeviceGetAttribute for the compute capability minor "
-            "of device %d",
-            DeviceID))
-      return Err;
-
-    return llvm::formatv("sm_{0}{1}", Major, Minor).str();
+  [[nodiscard]] llvm::StringRef getArchitecture() const override {
+    return Device->getArchitecture();
   }
 
   [[nodiscard]] llvm::Expected<std::pair<size_t, size_t>>
   getMemoryInfo() const override {
-    auto GuardOrErr = CurrentContextGuard::create(Context);
+    auto GuardOrErr = CurrentContextGuard::create(Device->getContext());
     if (!GuardOrErr)
       return GuardOrErr.takeError();
 
     size_t Free = 0;
     size_t Total = 0;
-    if (auto Err = check(cuMemGetInfo(&Free, &Total),
-                         "error in cuMemGetInfo for device %d", DeviceID))
+    if (auto Err =
+            check(cuMemGetInfo(&Free, &Total),
+                  "error in cuMemGetInfo for device %d", Device->getID()))
       return Err;
 
     return std::pair<size_t, size_t>(Free, Total);
   }
 
   llvm::Error synchronize() override {
-    auto GuardOrErr = CurrentContextGuard::create(Context);
+    auto GuardOrErr = CurrentContextGuard::create(Device->getContext());
     if (!GuardOrErr)
       return GuardOrErr.takeError();
 
     return check(cuStreamSynchronize(Stream),
-                 "error in cuStreamSynchronize for device %d", DeviceID);
+                 "error in cuStreamSynchronize for device %d", Device->getID());
   }
 
 private:
-  CUDADeviceContextImpl(int DeviceID, CUdevice Device, CUcontext Context,
+  CUDADeviceContextImpl(std::shared_ptr<CUDADeviceState> Device,
                         CUstream Stream) noexcept
-      : DeviceID(DeviceID), Device(Device), Context(Context), Stream(Stream) {}
+      : Device(std::move(Device)), Stream(Stream) {}
 
   llvm::Error destroyStream() {
-    auto GuardOrErr = CurrentContextGuard::create(Context);
+    auto GuardOrErr = CurrentContextGuard::create(Device->getContext());
     if (!GuardOrErr)
       return GuardOrErr.takeError();
 
-    if (auto Err = check(cuStreamDestroy(Stream),
-                         "error in cuStreamDestroy for device %d", DeviceID))
+    if (auto Err =
+            check(cuStreamDestroy(Stream),
+                  "error in cuStreamDestroy for device %d", Device->getID()))
       return Err;
 
     Stream = nullptr;
     return llvm::Error::success();
   }
 
-  int DeviceID;
-  CUdevice Device;
-  CUcontext Context;
+  std::shared_ptr<CUDADeviceState> Device;
   CUstream Stream;
 };
 
@@ -300,12 +347,34 @@ public:
 
   [[nodiscard]] llvm::Expected<std::unique_ptr<detail::DeviceContextImpl>>
   createDeviceContextImpl(int DeviceID) override {
-    return CUDADeviceContextImpl::create(DeviceID);
+    auto DeviceOrErr = getOrCreateDeviceState(DeviceID);
+    if (!DeviceOrErr)
+      return DeviceOrErr.takeError();
+
+    return CUDADeviceContextImpl::create(std::move(*DeviceOrErr));
   }
 
 private:
-  CUDABackend(int APIVersion, int DeviceCount) noexcept
-      : Backend(APIVersion, DeviceCount) {}
+  CUDABackend(int APIVersion, int DeviceCount)
+      : Backend(APIVersion, DeviceCount), Devices(DeviceCount) {}
+
+  [[nodiscard]] llvm::Expected<std::shared_ptr<CUDADeviceState>>
+  getOrCreateDeviceState(int DeviceID) {
+    std::lock_guard<std::mutex> Lock(DevicesMutex);
+
+    if (auto Device = Devices[DeviceID].lock())
+      return Device;
+
+    auto DeviceOrErr = CUDADeviceState::create(DeviceID);
+    if (!DeviceOrErr)
+      return DeviceOrErr.takeError();
+
+    Devices[DeviceID] = *DeviceOrErr;
+    return *DeviceOrErr;
+  }
+
+  std::mutex DevicesMutex;
+  std::vector<std::weak_ptr<CUDADeviceState>> Devices;
 };
 
 } // namespace

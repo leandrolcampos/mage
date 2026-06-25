@@ -23,10 +23,30 @@
 
 #include "mage/Offload/DeviceContext.hpp"
 
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/ErrorHandling.h"
 
+#include <utility>
+
 using namespace mage;
+
+detail::DeviceState::~DeviceState() noexcept = default;
+
+DeviceAPI detail::DeviceState::getAPI() const noexcept { return API; }
+
+int detail::DeviceState::getID() const noexcept { return DeviceID; }
+
+llvm::StringRef detail::DeviceState::getName() const noexcept { return Name; }
+
+llvm::StringRef detail::DeviceState::getArchitecture() const noexcept {
+  return Architecture;
+}
+
+detail::DeviceState::DeviceState(DeviceAPI API, int DeviceID, std::string Name,
+                                 std::string Architecture)
+    : API(API), DeviceID(DeviceID), Name(std::move(Name)),
+      Architecture(std::move(Architecture)) {}
 
 int detail::Backend::getAPIVersion() const noexcept { return APIVersion; }
 
