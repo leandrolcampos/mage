@@ -16,6 +16,7 @@
 
 #include "llvm/Support/Error.h"
 
+#include <stddef.h>
 #include <string>
 #include <type_traits>
 #include <utility>

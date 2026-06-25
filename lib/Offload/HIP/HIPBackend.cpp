@@ -15,6 +15,7 @@
 
 #include "Backend.hpp"
 
+#include "mage/Offload/DeviceBuffer.hpp"
 #include "mage/Support/Error.hpp"
 
 #include "llvm/ADT/StringRef.h"
@@ -26,8 +27,10 @@
 
 #include <hip/hip_runtime_api.h>
 
+#include <assert.h>
 #include <memory>
 #include <mutex>
+#include <stddef.h>
 #include <string>
 #include <utility>
 #include <vector>
@@ -134,6 +137,49 @@ private:
                     std::move(Architecture)) {}
 };
 
+class HIPHostBufferStorage final : public detail::HostBufferStorage {
+public:
+  ~HIPHostBufferStorage() noexcept override {
+    consumeErrorWithDebugLogging(freeHostBuffer());
+  }
+
+  [[nodiscard]] static llvm::Expected<
+      std::shared_ptr<detail::HostBufferStorage>>
+  create(std::shared_ptr<HIPDeviceState> Device, size_t SizeInBytes) {
+    assert(SizeInBytes > 0 && "cannot allocate an empty host buffer");
+
+    auto GuardOrErr = CurrentDeviceGuard::create(Device->getID());
+    if (!GuardOrErr)
+      return GuardOrErr.takeError();
+
+    void *Data = nullptr;
+    if (auto Err =
+            check(hipHostMalloc(&Data, SizeInBytes, hipHostMallocPortable),
+                  "error in hipHostMalloc for %zu bytes on device %d",
+                  SizeInBytes, Device->getID()))
+      return Err;
+
+    return std::shared_ptr<detail::HostBufferStorage>(
+        new HIPHostBufferStorage(std::move(Device), Data, SizeInBytes));
+  }
+
+private:
+  HIPHostBufferStorage(std::shared_ptr<HIPDeviceState> Device, void *Data,
+                       size_t SizeInBytes) noexcept
+      : HostBufferStorage(Data, SizeInBytes), Device(std::move(Device)) {}
+
+  llvm::Error freeHostBuffer() {
+    auto GuardOrErr = CurrentDeviceGuard::create(Device->getID());
+    if (!GuardOrErr)
+      return GuardOrErr.takeError();
+
+    return check(hipHostFree(data()), "error in hipHostFree for device %d",
+                 Device->getID());
+  }
+
+  std::shared_ptr<HIPDeviceState> Device;
+};
+
 class HIPDeviceContextImpl final : public detail::DeviceContextImpl {
 public:
   ~HIPDeviceContextImpl() noexcept override {
@@ -186,6 +232,11 @@ public:
       return Err;
 
     return std::pair<size_t, size_t>(Free, Total);
+  }
+
+  [[nodiscard]] llvm::Expected<std::shared_ptr<detail::HostBufferStorage>>
+  createHostBufferStorage(size_t SizeInBytes) override {
+    return HIPHostBufferStorage::create(Device, SizeInBytes);
   }
 
   llvm::Error synchronize() override {
@@ -282,19 +333,19 @@ private:
   getOrCreateDeviceState(int DeviceID) {
     std::lock_guard<std::mutex> Lock(DevicesMutex);
 
-    if (auto Device = Devices[DeviceID].lock())
+    if (auto Device = Devices[DeviceID])
       return Device;
 
     auto DeviceOrErr = HIPDeviceState::create(DeviceID);
     if (!DeviceOrErr)
       return DeviceOrErr.takeError();
 
-    Devices[DeviceID] = *DeviceOrErr;
-    return *DeviceOrErr;
+    Devices[DeviceID] = std::move(*DeviceOrErr);
+    return Devices[DeviceID];
   }
 
   std::mutex DevicesMutex;
-  std::vector<std::weak_ptr<HIPDeviceState>> Devices;
+  std::vector<std::shared_ptr<HIPDeviceState>> Devices;
 };
 
 } // namespace

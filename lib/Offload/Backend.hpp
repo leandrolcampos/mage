@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// Declares the backend abstraction and related helpers.
+/// Declares the backend abstraction used by device contexts.
 ///
 //===----------------------------------------------------------------------===//
 
@@ -67,6 +67,8 @@ public:
   [[nodiscard]] virtual llvm::StringRef getArchitecture() const = 0;
   [[nodiscard]] virtual llvm::Expected<std::pair<size_t, size_t>>
   getMemoryInfo() const = 0;
+  [[nodiscard]] virtual llvm::Expected<std::shared_ptr<HostBufferStorage>>
+  createHostBufferStorage(size_t SizeInBytes) = 0;
 
   virtual llvm::Error synchronize() = 0;
 

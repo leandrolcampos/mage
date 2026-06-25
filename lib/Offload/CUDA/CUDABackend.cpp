@@ -15,6 +15,7 @@
 
 #include "Backend.hpp"
 
+#include "mage/Offload/DeviceBuffer.hpp"
 #include "mage/Support/Error.hpp"
 
 #include "llvm/ADT/StringRef.h"
@@ -26,8 +27,10 @@
 
 #include <cuda.h>
 
+#include <assert.h>
 #include <memory>
 #include <mutex>
+#include <stddef.h>
 #include <string>
 #include <utility>
 #include <vector>
@@ -215,6 +218,49 @@ private:
   CUcontext Context;
 };
 
+class CUDAHostBufferStorage final : public detail::HostBufferStorage {
+public:
+  ~CUDAHostBufferStorage() noexcept override {
+    consumeErrorWithDebugLogging(freeHostBuffer());
+  }
+
+  [[nodiscard]] static llvm::Expected<
+      std::shared_ptr<detail::HostBufferStorage>>
+  create(std::shared_ptr<CUDADeviceState> Device, size_t SizeInBytes) {
+    assert(SizeInBytes > 0 && "cannot allocate an empty host buffer");
+
+    auto GuardOrErr = CurrentContextGuard::create(Device->getContext());
+    if (!GuardOrErr)
+      return GuardOrErr.takeError();
+
+    void *Data = nullptr;
+    if (auto Err =
+            check(cuMemHostAlloc(&Data, SizeInBytes, CU_MEMHOSTALLOC_PORTABLE),
+                  "error in cuMemHostAlloc for %zu bytes on device %d",
+                  SizeInBytes, Device->getID()))
+      return Err;
+
+    return std::shared_ptr<detail::HostBufferStorage>(
+        new CUDAHostBufferStorage(std::move(Device), Data, SizeInBytes));
+  }
+
+private:
+  CUDAHostBufferStorage(std::shared_ptr<CUDADeviceState> Device, void *Data,
+                        size_t SizeInBytes) noexcept
+      : HostBufferStorage(Data, SizeInBytes), Device(std::move(Device)) {}
+
+  llvm::Error freeHostBuffer() {
+    auto GuardOrErr = CurrentContextGuard::create(Device->getContext());
+    if (!GuardOrErr)
+      return GuardOrErr.takeError();
+
+    return check(cuMemFreeHost(data()), "error in cuMemFreeHost for device %d",
+                 Device->getID());
+  }
+
+  std::shared_ptr<CUDADeviceState> Device;
+};
+
 class CUDADeviceContextImpl final : public detail::DeviceContextImpl {
 public:
   ~CUDADeviceContextImpl() noexcept override {
@@ -267,6 +313,11 @@ public:
       return Err;
 
     return std::pair<size_t, size_t>(Free, Total);
+  }
+
+  [[nodiscard]] llvm::Expected<std::shared_ptr<detail::HostBufferStorage>>
+  createHostBufferStorage(size_t SizeInBytes) override {
+    return CUDAHostBufferStorage::create(Device, SizeInBytes);
   }
 
   llvm::Error synchronize() override {
@@ -362,19 +413,22 @@ private:
   getOrCreateDeviceState(int DeviceID) {
     std::lock_guard<std::mutex> Lock(DevicesMutex);
 
-    if (auto Device = Devices[DeviceID].lock())
+    if (auto Device = Devices[DeviceID])
       return Device;
 
     auto DeviceOrErr = CUDADeviceState::create(DeviceID);
     if (!DeviceOrErr)
       return DeviceOrErr.takeError();
 
-    Devices[DeviceID] = *DeviceOrErr;
-    return *DeviceOrErr;
+    Devices[DeviceID] = std::move(*DeviceOrErr);
+    return Devices[DeviceID];
   }
 
   std::mutex DevicesMutex;
-  std::vector<std::weak_ptr<CUDADeviceState>> Devices;
+
+  // Keep device state alive for the lifetime of the backend so CUDA primary
+  // contexts are retained once and reused by all device resource instances.
+  std::vector<std::shared_ptr<CUDADeviceState>> Devices;
 };
 
 } // namespace

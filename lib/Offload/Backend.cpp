@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// Implements backend selection and shared backend helpers.
+/// Implements backend selection and shared backend utilities.
 ///
 //===----------------------------------------------------------------------===//
 
@@ -27,6 +27,7 @@
 #include "llvm/Support/Error.h"
 #include "llvm/Support/ErrorHandling.h"
 
+#include <string>
 #include <utility>
 
 using namespace mage;

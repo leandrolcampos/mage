@@ -1,5 +1,6 @@
 set(offload_sources
   Backend.cpp
+  DeviceBuffer.cpp
   DeviceContext.cpp)
 
 set(offload_link_libraries

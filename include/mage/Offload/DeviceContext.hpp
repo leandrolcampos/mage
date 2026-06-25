@@ -22,12 +22,14 @@
 
 #include "llvm/Support/Error.h"
 
-#include <cstddef>
 #include <memory>
+#include <stddef.h>
 #include <string>
 #include <utility>
 
 namespace mage {
+
+template <typename T> class HostBuffer;
 
 enum class DeviceAPI {
   CUDA,
@@ -43,6 +45,7 @@ enum class DeviceAPI {
 
 namespace detail {
 class DeviceContextImpl;
+class HostBufferStorage;
 } // namespace detail
 
 /// Represents a single stream of execution on a particular GPU.
@@ -72,6 +75,11 @@ public:
   /// Returns the free and total memory size for the underlying device.
   [[nodiscard]] llvm::Expected<std::pair<size_t, size_t>> getMemoryInfo() const;
 
+  /// Allocates page-locked host memory containing \p ElementCount values.
+  template <typename T>
+  [[nodiscard]] llvm::Expected<HostBuffer<T>>
+  createHostBuffer(size_t ElementCount);
+
   /// Blocks until all asynchronous calls on the underlying stream have
   /// completed.
   llvm::Error synchronize();
@@ -79,6 +87,9 @@ public:
 private:
   explicit DeviceContext(
       std::unique_ptr<detail::DeviceContextImpl> Impl) noexcept;
+
+  [[nodiscard]] llvm::Expected<std::shared_ptr<detail::HostBufferStorage>>
+  createHostBufferStorage(size_t SizeInBytes);
 
   std::unique_ptr<detail::DeviceContextImpl> Impl;
 };

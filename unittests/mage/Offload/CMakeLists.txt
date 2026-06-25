@@ -1,4 +1,14 @@
 add_mage_unittest(
+  DeviceBufferTest
+  SRCS
+    DeviceBufferTest.cpp
+  BUILD_KINDS
+    HOST
+  LINK_LIBRARIES
+    MageOffload
+)
+
+add_mage_unittest(
   DeviceContextTest
   SRCS
     DeviceContextTest.cpp

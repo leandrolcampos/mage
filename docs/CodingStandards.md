@@ -216,14 +216,15 @@ Immediately after the file header comment, and include guards if working on a he
 1. Main module header.
 2. Local/private headers.
 3. Mage project headers.
-4. External dependency headers, including LLVM headers.
-5. System `#include`s.
+4. LLVM headers.
+5. Other external dependency headers.
+6. System `#include`s.
 
 Within each category, sort includes lexicographically by full path.
 
 The main module header applies to `.cpp` files that implement an interface defined by a public header. This `#include` should always be included first regardless of where it lives on the file system. By including the module header first in the `.cpp` file that implements it, we ensure that the header does not have hidden dependencies that should instead be included explicitly by the header itself. It is also a form of documentation in the `.cpp` file.
 
-Mage headers should be grouped before LLVM headers because Mage is the project being implemented, while LLVM is an external dependency. LLVM headers should be grouped before system headers for the same reason that project headers are grouped before system headers in LLVM: this reduces the chance that a project header accidentally relies on a transitive include from a system header.
+For unit-test `.cpp` files, the first include group should contain the header being tested followed by the unit-test framework header. Any additional includes should then follow the normal category order above.
 
 For example:
 
@@ -237,6 +238,8 @@ For example:
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/raw_ostream.h"
+
+#include <mpfr.h>
 
 #include <cassert>
 #include <cstdint>

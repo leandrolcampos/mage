@@ -20,6 +20,7 @@
 
 #include <assert.h>
 #include <memory>
+#include <stddef.h>
 #include <string>
 #include <utility>
 
@@ -103,6 +104,12 @@ std::string DeviceContext::getArchitecture() const {
 llvm::Expected<std::pair<size_t, size_t>> DeviceContext::getMemoryInfo() const {
   assert(Impl && "cannot use a moved-from DeviceContext");
   return Impl->getMemoryInfo();
+}
+
+llvm::Expected<std::shared_ptr<detail::HostBufferStorage>>
+DeviceContext::createHostBufferStorage(size_t SizeInBytes) {
+  assert(Impl && "cannot use a moved-from DeviceContext");
+  return Impl->createHostBufferStorage(SizeInBytes);
 }
 
 llvm::Error DeviceContext::synchronize() {
