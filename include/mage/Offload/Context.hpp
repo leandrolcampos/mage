@@ -11,8 +11,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef MAGE_OFFLOAD_DEVICE_CONTEXT_HPP
-#define MAGE_OFFLOAD_DEVICE_CONTEXT_HPP
+#ifndef MAGE_OFFLOAD_CONTEXT_HPP
+#define MAGE_OFFLOAD_CONTEXT_HPP
 
 #include "mage/Config/Target.hpp"
 
@@ -161,4 +161,4 @@ private:
 
 } // namespace mage
 
-#endif // MAGE_OFFLOAD_DEVICE_CONTEXT_HPP
+#endif // MAGE_OFFLOAD_CONTEXT_HPP

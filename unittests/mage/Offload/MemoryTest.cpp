@@ -11,10 +11,10 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "mage/Offload/DeviceBuffer.hpp"
+#include "mage/Offload/Memory.hpp"
 #include "UnitTest/Test.hpp"
 
-#include "mage/Offload/DeviceContext.hpp"
+#include "mage/Offload/Context.hpp"
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/Support/Error.h"
@@ -50,7 +50,7 @@ static_assert(
     std::is_convertible<HostBuffer<int> &, llvm::MutableArrayRef<int>>::value,
     "HostBuffer must convert to MutableArrayRef");
 
-MAGE_TEST(DeviceBufferTest, SupportsEmptyHostBuffers) {
+MAGE_TEST(MemoryTest, SupportsEmptyHostBuffers) {
   HostBuffer<int> Buffer;
 
   MAGE_EXPECT_TRUE(Buffer.empty());
@@ -64,7 +64,7 @@ MAGE_TEST(DeviceBufferTest, SupportsEmptyHostBuffers) {
   MAGE_EXPECT_TRUE(MutableValues.empty());
 }
 
-MAGE_TEST(DeviceBufferTest, CreatesHostBuffersForAvailableDevices) {
+MAGE_TEST(MemoryTest, CreatesHostBuffersForAvailableDevices) {
   forEachDeviceAPI([&](DeviceAPI API) {
     auto CountOrErr = getDeviceCount(API);
     if (!CountOrErr) {
@@ -103,7 +103,7 @@ MAGE_TEST(DeviceBufferTest, CreatesHostBuffersForAvailableDevices) {
   });
 }
 
-MAGE_TEST(DeviceBufferTest, CreatesEmptyHostBuffersForAvailableDevices) {
+MAGE_TEST(MemoryTest, CreatesEmptyHostBuffersForAvailableDevices) {
   forEachDeviceAPI([&](DeviceAPI API) {
     auto CountOrErr = getDeviceCount(API);
     if (!CountOrErr) {
@@ -132,7 +132,7 @@ MAGE_TEST(DeviceBufferTest, CreatesEmptyHostBuffersForAvailableDevices) {
   });
 }
 
-MAGE_TEST(DeviceBufferTest, RejectsHostBufferAllocationSizeOverflows) {
+MAGE_TEST(MemoryTest, RejectsHostBufferAllocationSizeOverflows) {
   forEachDeviceAPI([&](DeviceAPI API) {
     auto CountOrErr = getDeviceCount(API);
     if (!CountOrErr) {
@@ -160,7 +160,7 @@ MAGE_TEST(DeviceBufferTest, RejectsHostBufferAllocationSizeOverflows) {
   });
 }
 
-MAGE_TEST(DeviceBufferTest, MovesHostBuffersForAvailableDevices) {
+MAGE_TEST(MemoryTest, MovesHostBuffersForAvailableDevices) {
   forEachDeviceAPI([&](DeviceAPI API) {
     auto CountOrErr = getDeviceCount(API);
     if (!CountOrErr) {
@@ -212,7 +212,7 @@ MAGE_TEST(DeviceBufferTest, MovesHostBuffersForAvailableDevices) {
   });
 }
 
-MAGE_TEST(DeviceBufferTest, ConvertsHostBuffersToArrayRefsForAvailableDevices) {
+MAGE_TEST(MemoryTest, ConvertsHostBuffersToArrayRefsForAvailableDevices) {
   forEachDeviceAPI([&](DeviceAPI API) {
     auto CountOrErr = getDeviceCount(API);
     if (!CountOrErr) {
@@ -265,7 +265,7 @@ static_assert(std::is_move_constructible<DeviceBuffer<int>>::value,
 static_assert(std::is_move_assignable<DeviceBuffer<int>>::value,
               "DeviceBuffer must be move assignable");
 
-MAGE_TEST(DeviceBufferTest, SupportsEmptyDeviceBuffers) {
+MAGE_TEST(MemoryTest, SupportsEmptyDeviceBuffers) {
   DeviceBuffer<int> Buffer;
 
   MAGE_EXPECT_TRUE(Buffer.empty());
@@ -273,7 +273,7 @@ MAGE_TEST(DeviceBufferTest, SupportsEmptyDeviceBuffers) {
   MAGE_EXPECT_TRUE(Buffer.data() == nullptr);
 }
 
-MAGE_TEST(DeviceBufferTest, CreatesDeviceBuffersForAvailableDevices) {
+MAGE_TEST(MemoryTest, CreatesDeviceBuffersForAvailableDevices) {
   forEachDeviceAPI([&](DeviceAPI API) {
     auto CountOrErr = getDeviceCount(API);
     if (!CountOrErr) {
@@ -307,7 +307,7 @@ MAGE_TEST(DeviceBufferTest, CreatesDeviceBuffersForAvailableDevices) {
   });
 }
 
-MAGE_TEST(DeviceBufferTest, CreatesEmptyDeviceBuffersForAvailableDevices) {
+MAGE_TEST(MemoryTest, CreatesEmptyDeviceBuffersForAvailableDevices) {
   forEachDeviceAPI([&](DeviceAPI API) {
     auto CountOrErr = getDeviceCount(API);
     if (!CountOrErr) {
@@ -336,7 +336,7 @@ MAGE_TEST(DeviceBufferTest, CreatesEmptyDeviceBuffersForAvailableDevices) {
   });
 }
 
-MAGE_TEST(DeviceBufferTest, RejectsDeviceBufferAllocationSizeOverflows) {
+MAGE_TEST(MemoryTest, RejectsDeviceBufferAllocationSizeOverflows) {
   forEachDeviceAPI([&](DeviceAPI API) {
     auto CountOrErr = getDeviceCount(API);
     if (!CountOrErr) {
@@ -364,7 +364,7 @@ MAGE_TEST(DeviceBufferTest, RejectsDeviceBufferAllocationSizeOverflows) {
   });
 }
 
-MAGE_TEST(DeviceBufferTest, MovesDeviceBuffersForAvailableDevices) {
+MAGE_TEST(MemoryTest, MovesDeviceBuffersForAvailableDevices) {
   forEachDeviceAPI([&](DeviceAPI API) {
     auto CountOrErr = getDeviceCount(API);
     if (!CountOrErr) {
@@ -421,7 +421,7 @@ MAGE_TEST(DeviceBufferTest, MovesDeviceBuffersForAvailableDevices) {
   });
 }
 
-MAGE_TEST(DeviceBufferTest, CopiesToEmptyDestinationBuffers) {
+MAGE_TEST(MemoryTest, CopiesToEmptyDestinationBuffers) {
   forEachDeviceAPI([&](DeviceAPI API) {
     auto CountOrErr = getDeviceCount(API);
     if (!CountOrErr) {
@@ -456,7 +456,7 @@ MAGE_TEST(DeviceBufferTest, CopiesToEmptyDestinationBuffers) {
   });
 }
 
-MAGE_TEST(DeviceBufferTest, CopiesBuffersForAvailableDevices) {
+MAGE_TEST(MemoryTest, CopiesBuffersForAvailableDevices) {
   forEachDeviceAPI([&](DeviceAPI API) {
     auto CountOrErr = getDeviceCount(API);
     if (!CountOrErr) {
@@ -523,7 +523,7 @@ MAGE_TEST(DeviceBufferTest, CopiesBuffersForAvailableDevices) {
   });
 }
 
-MAGE_TEST(DeviceBufferTest, RejectsCopiesFromTooSmallSourceBuffers) {
+MAGE_TEST(MemoryTest, RejectsCopiesFromTooSmallSourceBuffers) {
   forEachDeviceAPI([&](DeviceAPI API) {
     auto CountOrErr = getDeviceCount(API);
     if (!CountOrErr) {
@@ -578,7 +578,7 @@ MAGE_TEST(DeviceBufferTest, RejectsCopiesFromTooSmallSourceBuffers) {
   });
 }
 
-MAGE_TEST(DeviceBufferTest, RejectsCopiesWithDeviceBuffersFromOtherContexts) {
+MAGE_TEST(MemoryTest, RejectsCopiesWithDeviceBuffersFromOtherContexts) {
   forEachDeviceAPI([&](DeviceAPI API) {
     auto CountOrErr = getDeviceCount(API);
     if (!CountOrErr) {

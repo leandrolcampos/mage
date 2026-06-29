@@ -11,7 +11,7 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "mage/Offload/DeviceBuffer.hpp"
+#include "mage/Offload/Memory.hpp"
 
 #include <assert.h>
 #include <stddef.h>

@@ -14,7 +14,7 @@
 #ifndef MAGE_LIB_OFFLOAD_BACKEND_HPP
 #define MAGE_LIB_OFFLOAD_BACKEND_HPP
 
-#include "mage/Offload/DeviceContext.hpp"
+#include "mage/Offload/Context.hpp"
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Error.h"

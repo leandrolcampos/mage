@@ -1,7 +1,7 @@
 add_mage_unittest(
-  DeviceBufferTest
+  MemoryTest
   SRCS
-    DeviceBufferTest.cpp
+    MemoryTest.cpp
   BUILD_KINDS
     HOST
   LINK_LIBRARIES
@@ -9,9 +9,9 @@ add_mage_unittest(
 )
 
 add_mage_unittest(
-  DeviceContextTest
+  ContextTest
   SRCS
-    DeviceContextTest.cpp
+    ContextTest.cpp
   BUILD_KINDS
     HOST
   LINK_LIBRARIES

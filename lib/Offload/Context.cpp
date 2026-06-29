@@ -11,7 +11,7 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "mage/Offload/DeviceContext.hpp"
+#include "mage/Offload/Context.hpp"
 
 #include "Backend.hpp"
 

@@ -15,7 +15,7 @@
 
 #include "Backend.hpp"
 
-#include "mage/Offload/DeviceBuffer.hpp"
+#include "mage/Offload/Memory.hpp"
 #include "mage/Support/Error.hpp"
 
 #include "llvm/ADT/StringRef.h"

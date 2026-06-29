@@ -21,7 +21,7 @@
 #include "HIPBackend.hpp"
 #endif
 
-#include "mage/Offload/DeviceContext.hpp"
+#include "mage/Offload/Context.hpp"
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Error.h"

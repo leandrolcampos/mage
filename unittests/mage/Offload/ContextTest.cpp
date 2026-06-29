@@ -11,7 +11,7 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "mage/Offload/DeviceContext.hpp"
+#include "mage/Offload/Context.hpp"
 #include "UnitTest/Test.hpp"
 
 #include "llvm/Support/Error.h"
@@ -32,12 +32,12 @@ template <typename Function> static void forEachDeviceAPI(Function &&Fn) {
     Fn(API);
 }
 
-MAGE_TEST(DeviceContextTest, ConvertsDeviceAPIToString) {
+MAGE_TEST(ContextTest, ConvertsDeviceAPIToString) {
   MAGE_EXPECT_STREQ(toString(DeviceAPI::CUDA), "CUDA");
   MAGE_EXPECT_STREQ(toString(DeviceAPI::HIP), "HIP");
 }
 
-MAGE_TEST(DeviceContextTest, GetsDeviceCountForSupportedAPIs) {
+MAGE_TEST(ContextTest, GetsDeviceCountForSupportedAPIs) {
   forEachDeviceAPI([&](DeviceAPI API) {
     auto CountOrErr = getDeviceCount(API);
     if (!CountOrErr) {
@@ -58,7 +58,7 @@ static_assert(std::is_move_constructible<DeviceContext>::value,
 static_assert(std::is_move_assignable<DeviceContext>::value,
               "DeviceContext must be move assignable");
 
-MAGE_TEST(DeviceContextTest, SupportsMoveConstruction) {
+MAGE_TEST(ContextTest, SupportsMoveConstruction) {
   forEachDeviceAPI([&](DeviceAPI API) {
     auto CountOrErr = getDeviceCount(API);
     if (!CountOrErr) {
@@ -81,7 +81,7 @@ MAGE_TEST(DeviceContextTest, SupportsMoveConstruction) {
   });
 }
 
-MAGE_TEST(DeviceContextTest, SupportsMoveAssignment) {
+MAGE_TEST(ContextTest, SupportsMoveAssignment) {
   forEachDeviceAPI([&](DeviceAPI API) {
     auto CountOrErr = getDeviceCount(API);
     if (!CountOrErr) {
@@ -110,7 +110,7 @@ MAGE_TEST(DeviceContextTest, SupportsMoveAssignment) {
   });
 }
 
-MAGE_TEST(DeviceContextTest, CreatesDefaultContextForAvailableDevices) {
+MAGE_TEST(ContextTest, CreatesDefaultContextForAvailableDevices) {
   forEachDeviceAPI([&](DeviceAPI API) {
     auto CountOrErr = getDeviceCount(API);
     if (!CountOrErr) {
@@ -132,7 +132,7 @@ MAGE_TEST(DeviceContextTest, CreatesDefaultContextForAvailableDevices) {
   });
 }
 
-MAGE_TEST(DeviceContextTest, RejectsInvalidDeviceIDs) {
+MAGE_TEST(ContextTest, RejectsInvalidDeviceIDs) {
   forEachDeviceAPI([&](DeviceAPI API) {
     auto CountOrErr = getDeviceCount(API);
     if (!CountOrErr) {
@@ -154,7 +154,7 @@ MAGE_TEST(DeviceContextTest, RejectsInvalidDeviceIDs) {
   });
 }
 
-MAGE_TEST(DeviceContextTest, GetsContextPropertiesForAvailableDevices) {
+MAGE_TEST(ContextTest, GetsContextPropertiesForAvailableDevices) {
   forEachDeviceAPI([&](DeviceAPI API) {
     auto CountOrErr = getDeviceCount(API);
     if (!CountOrErr) {
@@ -180,7 +180,7 @@ MAGE_TEST(DeviceContextTest, GetsContextPropertiesForAvailableDevices) {
   });
 }
 
-MAGE_TEST(DeviceContextTest, GetsMemoryInfoForAvailableDevices) {
+MAGE_TEST(ContextTest, GetsMemoryInfoForAvailableDevices) {
   forEachDeviceAPI([&](DeviceAPI API) {
     auto CountOrErr = getDeviceCount(API);
     if (!CountOrErr) {
@@ -207,7 +207,7 @@ MAGE_TEST(DeviceContextTest, GetsMemoryInfoForAvailableDevices) {
   });
 }
 
-MAGE_TEST(DeviceContextTest, SynchronizesAvailableContexts) {
+MAGE_TEST(ContextTest, SynchronizesAvailableContexts) {
   forEachDeviceAPI([&](DeviceAPI API) {
     auto CountOrErr = getDeviceCount(API);
     if (!CountOrErr) {

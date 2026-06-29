@@ -11,8 +11,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef MAGE_OFFLOAD_DEVICE_BUFFER_HPP
-#define MAGE_OFFLOAD_DEVICE_BUFFER_HPP
+#ifndef MAGE_OFFLOAD_MEMORY_HPP
+#define MAGE_OFFLOAD_MEMORY_HPP
 
 #include "mage/Config/Target.hpp"
 
@@ -20,7 +20,7 @@
 #error "this header is only available for host targets"
 #endif
 
-#include "mage/Offload/DeviceContext.hpp"
+#include "mage/Offload/Context.hpp"
 #include "mage/Support/TypeTraits.hpp"
 
 #include "llvm/ADT/ArrayRef.h"
@@ -343,4 +343,4 @@ llvm::Error DeviceContext::enqueueCopy(HostBuffer<T> &Dst,
 
 } // namespace mage
 
-#endif // MAGE_OFFLOAD_DEVICE_BUFFER_HPP
+#endif // MAGE_OFFLOAD_MEMORY_HPP

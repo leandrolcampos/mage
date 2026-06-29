@@ -1,7 +1,7 @@
 set(offload_sources
   Backend.cpp
-  DeviceBuffer.cpp
-  DeviceContext.cpp)
+  Context.cpp
+  Memory.cpp)
 
 set(offload_link_libraries
   MageSupport
