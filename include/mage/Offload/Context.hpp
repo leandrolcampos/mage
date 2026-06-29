@@ -29,8 +29,8 @@
 
 namespace mage {
 
-template <typename T> class HostBuffer;
-template <typename T> class DeviceBuffer;
+template <typename T> class [[nodiscard]] HostBuffer;
+template <typename T> class [[nodiscard]] DeviceBuffer;
 
 enum class DeviceAPI {
   CUDA,
@@ -42,7 +42,7 @@ enum class DeviceAPI {
 /// Returns the number of devices available through \p API.
 ///
 /// Returns 0 if Mage was built without runtime support for \p API.
-[[nodiscard]] llvm::Expected<int> getDeviceCount(DeviceAPI API);
+llvm::Expected<int> getDeviceCount(DeviceAPI API);
 
 namespace detail {
 class DeviceContextIdentity;
@@ -52,7 +52,7 @@ class DeviceBufferStorage;
 } // namespace detail
 
 /// Represents a single stream of execution on a particular GPU.
-class DeviceContext {
+class [[nodiscard]] DeviceContext {
 public:
   ~DeviceContext() noexcept;
 
@@ -76,15 +76,14 @@ public:
   [[nodiscard]] std::string getArchitecture() const;
 
   /// Returns the free and total memory size for the underlying device.
-  [[nodiscard]] llvm::Expected<std::pair<size_t, size_t>> getMemoryInfo() const;
+  llvm::Expected<std::pair<size_t, size_t>> getMemoryInfo() const;
 
   /// Creates a host buffer synchronously containing \p ElementCount values.
   ///
   /// This function allocates page-locked (pinned) host memory that can be used
   /// efficiently as the host endpoint of transfers between host and device.
   template <typename T>
-  [[nodiscard]] llvm::Expected<HostBuffer<T>>
-  createHostBuffer(size_t ElementCount);
+  llvm::Expected<HostBuffer<T>> createHostBuffer(size_t ElementCount);
 
   /// Enqueues a device buffer creation containing \p ElementCount values.
   ///
@@ -93,8 +92,7 @@ public:
   ///
   /// The resulting device buffer is bound to this context.
   template <typename T>
-  [[nodiscard]] llvm::Expected<DeviceBuffer<T>>
-  enqueueCreateBuffer(size_t ElementCount);
+  llvm::Expected<DeviceBuffer<T>> enqueueCreateBuffer(size_t ElementCount);
 
   /// Enqueues a copy from \p Src to \p Dst.
   ///
@@ -128,7 +126,7 @@ public:
 
   /// Returns true if this stream has previously enqueued work that has not
   /// completed. Does not block.
-  [[nodiscard]] llvm::Expected<bool> hasPendingWork() const;
+  llvm::Expected<bool> hasPendingWork() const;
 
 private:
   explicit DeviceContext(
@@ -141,10 +139,10 @@ private:
       const std::shared_ptr<const detail::DeviceContextIdentity> &Identity)
       const noexcept;
 
-  [[nodiscard]] llvm::Expected<std::shared_ptr<detail::HostBufferStorage>>
+  llvm::Expected<std::shared_ptr<detail::HostBufferStorage>>
   createHostBufferStorage(size_t SizeInBytes);
 
-  [[nodiscard]] llvm::Expected<std::shared_ptr<detail::DeviceBufferStorage>>
+  llvm::Expected<std::shared_ptr<detail::DeviceBufferStorage>>
   enqueueCreateBufferStorage(size_t SizeInBytes);
 
   llvm::Error enqueueCopyToDeviceStorage(

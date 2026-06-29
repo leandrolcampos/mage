@@ -19,7 +19,7 @@
 namespace mage {
 namespace detail {
 
-[[nodiscard]] llvm::Expected<Backend &> getCUDABackend();
+llvm::Expected<Backend &> getCUDABackend();
 
 } // namespace detail
 } // namespace mage

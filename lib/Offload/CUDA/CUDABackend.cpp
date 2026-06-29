@@ -43,8 +43,8 @@ using namespace mage;
 //===----------------------------------------------------------------------===//
 
 template <typename... ArgsTy>
-[[nodiscard]] static llvm::Error check(CUresult Result, const char *ErrCtxFmt,
-                                       ArgsTy... Args) {
+static llvm::Error check(CUresult Result, const char *ErrCtxFmt,
+                         ArgsTy... Args) {
   if (Result == CUDA_SUCCESS)
     return llvm::Error::success();
 
@@ -68,7 +68,7 @@ template <typename... ArgsTy>
 // CUDA device helpers
 //===----------------------------------------------------------------------===//
 
-[[nodiscard]] static llvm::Expected<CUdevice> getDevice(int DeviceID) {
+static llvm::Expected<CUdevice> getDevice(int DeviceID) {
   CUdevice Device;
   if (auto Err = check(cuDeviceGet(&Device, DeviceID),
                        "error in cuDeviceGet for device %d", DeviceID))
@@ -76,8 +76,8 @@ template <typename... ArgsTy>
   return Device;
 }
 
-[[nodiscard]] static llvm::Expected<CUcontext>
-retainPrimaryContext(int DeviceID, CUdevice Device) {
+static llvm::Expected<CUcontext> retainPrimaryContext(int DeviceID,
+                                                      CUdevice Device) {
   CUcontext Context = nullptr;
   if (auto Err =
           check(cuDevicePrimaryCtxRetain(&Context, Device),
@@ -87,14 +87,13 @@ retainPrimaryContext(int DeviceID, CUdevice Device) {
   return Context;
 }
 
-[[nodiscard]] static llvm::Error releasePrimaryContext(int DeviceID,
-                                                       CUdevice Device) {
+static llvm::Error releasePrimaryContext(int DeviceID, CUdevice Device) {
   return check(cuDevicePrimaryCtxRelease(Device),
                "error in cuDevicePrimaryCtxRelease for device %d", DeviceID);
 }
 
-[[nodiscard]] static llvm::Expected<std::string>
-getDeviceName(int DeviceID, CUdevice Device) {
+static llvm::Expected<std::string> getDeviceName(int DeviceID,
+                                                 CUdevice Device) {
   char Name[256] = {};
   if (auto Err = check(cuDeviceGetName(Name, sizeof(Name), Device),
                        "error in cuDeviceGetName for device %d", DeviceID))
@@ -103,8 +102,8 @@ getDeviceName(int DeviceID, CUdevice Device) {
   return std::string(Name);
 }
 
-[[nodiscard]] static llvm::Expected<std::string>
-getDeviceArchitecture(int DeviceID, CUdevice Device) {
+static llvm::Expected<std::string> getDeviceArchitecture(int DeviceID,
+                                                         CUdevice Device) {
   int Major = 0;
   if (auto Err = check(
           cuDeviceGetAttribute(
@@ -149,7 +148,7 @@ toCUDADevicePointer(const void *Pointer) noexcept {
 
 namespace {
 
-class CurrentContextGuard {
+class [[nodiscard]] CurrentContextGuard {
 public:
   ~CurrentContextGuard() noexcept {
     if (IsActive)
@@ -169,7 +168,7 @@ public:
 
   CurrentContextGuard &operator=(CurrentContextGuard &&Other) = delete;
 
-  [[nodiscard]] static llvm::Expected<CurrentContextGuard>
+  static llvm::Expected<CurrentContextGuard>
   create(CUcontext TemporaryContext) {
     CUcontext PreviousContext = nullptr;
     if (auto Err = check(cuCtxGetCurrent(&PreviousContext),
@@ -195,15 +194,14 @@ private:
 // CUDA device state
 //===----------------------------------------------------------------------===//
 
-class CUDADeviceState final : public detail::DeviceState {
+class [[nodiscard]] CUDADeviceState final : public detail::DeviceState {
 public:
   ~CUDADeviceState() noexcept override {
     if (Context)
       consumeErrorWithDebugLogging(releasePrimaryContext(getID(), Device));
   }
 
-  [[nodiscard]] static llvm::Expected<std::shared_ptr<CUDADeviceState>>
-  create(int DeviceID) {
+  static llvm::Expected<std::shared_ptr<CUDADeviceState>> create(int DeviceID) {
     auto DeviceOrErr = getDevice(DeviceID);
     if (!DeviceOrErr)
       return DeviceOrErr.takeError();
@@ -256,7 +254,7 @@ private:
 // CUDA stream state
 //===----------------------------------------------------------------------===//
 
-class CUDAStreamState final : public detail::StreamState {
+class [[nodiscard]] CUDAStreamState final : public detail::StreamState {
 public:
   ~CUDAStreamState() noexcept override {
     if (!Stream)
@@ -266,7 +264,7 @@ public:
     consumeErrorWithDebugLogging(destroyStream());
   }
 
-  [[nodiscard]] static llvm::Expected<std::shared_ptr<CUDAStreamState>>
+  static llvm::Expected<std::shared_ptr<CUDAStreamState>>
   create(std::shared_ptr<CUDADeviceState> Device) {
     auto GuardOrErr = CurrentContextGuard::create(Device->getContext());
     if (!GuardOrErr)
@@ -338,14 +336,14 @@ private:
 // CUDA buffer storage
 //===----------------------------------------------------------------------===//
 
-class CUDAHostBufferStorage final : public detail::HostBufferStorage {
+class [[nodiscard]] CUDAHostBufferStorage final
+    : public detail::HostBufferStorage {
 public:
   ~CUDAHostBufferStorage() noexcept override {
     consumeErrorWithDebugLogging(freeHostBuffer());
   }
 
-  [[nodiscard]] static llvm::Expected<
-      std::shared_ptr<detail::HostBufferStorage>>
+  static llvm::Expected<std::shared_ptr<detail::HostBufferStorage>>
   create(std::shared_ptr<CUDADeviceState> Device, size_t SizeInBytes) {
     assert(SizeInBytes > 0 && "cannot allocate an empty host buffer");
 
@@ -381,14 +379,14 @@ private:
   std::shared_ptr<CUDADeviceState> Device;
 };
 
-class CUDADeviceBufferStorage final : public detail::DeviceBufferStorage {
+class [[nodiscard]] CUDADeviceBufferStorage final
+    : public detail::DeviceBufferStorage {
 public:
   ~CUDADeviceBufferStorage() noexcept override {
     consumeErrorWithDebugLogging(freeDeviceBuffer());
   }
 
-  [[nodiscard]] static llvm::Expected<
-      std::shared_ptr<detail::DeviceBufferStorage>>
+  static llvm::Expected<std::shared_ptr<detail::DeviceBufferStorage>>
   create(std::shared_ptr<CUDADeviceState> Device,
          std::shared_ptr<CUDAStreamState> Stream, size_t SizeInBytes) {
     assert(SizeInBytes > 0 && "cannot allocate an empty device buffer");
@@ -432,14 +430,14 @@ private:
 // CUDA device context
 //===----------------------------------------------------------------------===//
 
-class CUDADeviceContextImpl final : public detail::DeviceContextImpl {
+class [[nodiscard]] CUDADeviceContextImpl final
+    : public detail::DeviceContextImpl {
 public:
   ~CUDADeviceContextImpl() noexcept override {
     consumeErrorWithDebugLogging(synchronize());
   }
 
-  [[nodiscard]] static llvm::Expected<
-      std::unique_ptr<detail::DeviceContextImpl>>
+  static llvm::Expected<std::unique_ptr<detail::DeviceContextImpl>>
   create(std::shared_ptr<CUDADeviceState> Device) {
     auto StreamOrErr = CUDAStreamState::create(Device);
     if (!StreamOrErr)
@@ -463,8 +461,7 @@ public:
     return Device->getArchitecture();
   }
 
-  [[nodiscard]] llvm::Expected<std::pair<size_t, size_t>>
-  getMemoryInfo() const override {
+  llvm::Expected<std::pair<size_t, size_t>> getMemoryInfo() const override {
     auto GuardOrErr = CurrentContextGuard::create(Device->getContext());
     if (!GuardOrErr)
       return GuardOrErr.takeError();
@@ -479,12 +476,12 @@ public:
     return std::pair<size_t, size_t>(Free, Total);
   }
 
-  [[nodiscard]] llvm::Expected<std::shared_ptr<detail::HostBufferStorage>>
+  llvm::Expected<std::shared_ptr<detail::HostBufferStorage>>
   createHostBufferStorage(size_t SizeInBytes) override {
     return CUDAHostBufferStorage::create(Device, SizeInBytes);
   }
 
-  [[nodiscard]] llvm::Expected<std::shared_ptr<detail::DeviceBufferStorage>>
+  llvm::Expected<std::shared_ptr<detail::DeviceBufferStorage>>
   enqueueCreateBufferStorage(size_t SizeInBytes) override {
     return CUDADeviceBufferStorage::create(Device, Stream, SizeInBytes);
   }
@@ -568,9 +565,9 @@ private:
 // CUDA backend
 //===----------------------------------------------------------------------===//
 
-class CUDABackend final : public detail::Backend {
+class [[nodiscard]] CUDABackend final : public detail::Backend {
 public:
-  [[nodiscard]] static llvm::Expected<Backend &> get() {
+  static llvm::Expected<Backend &> get() {
     static Backend *Instance = nullptr;
 
     static llvm::once_flag InitFlag;
@@ -612,7 +609,7 @@ public:
     return DeviceAPI::CUDA;
   }
 
-  [[nodiscard]] llvm::Expected<std::unique_ptr<detail::DeviceContextImpl>>
+  llvm::Expected<std::unique_ptr<detail::DeviceContextImpl>>
   createDeviceContextImpl(int DeviceID) override {
     auto DeviceOrErr = getOrCreateDeviceState(DeviceID);
     if (!DeviceOrErr)
@@ -625,7 +622,7 @@ private:
   CUDABackend(int APIVersion, int DeviceCount)
       : Backend(APIVersion, DeviceCount), Devices(DeviceCount) {}
 
-  [[nodiscard]] llvm::Expected<std::shared_ptr<CUDADeviceState>>
+  llvm::Expected<std::shared_ptr<CUDADeviceState>>
   getOrCreateDeviceState(int DeviceID) {
     std::lock_guard<std::mutex> Lock(DevicesMutex);
 

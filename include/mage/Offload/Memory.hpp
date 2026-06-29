@@ -63,7 +63,7 @@ private:
 } // namespace detail
 
 /// Represents a contiguous block of host-resident memory.
-template <typename T> class HostBuffer {
+template <typename T> class [[nodiscard]] HostBuffer {
   static_assert(is_trivially_copyable_v<T>,
                 "HostBuffer elements must be trivially copyable");
 
@@ -194,7 +194,7 @@ private:
 } // namespace detail
 
 /// Represents a contiguous block of device-resident global memory.
-template <typename T> class DeviceBuffer {
+template <typename T> class [[nodiscard]] DeviceBuffer {
   static_assert(is_trivially_copyable_v<T>,
                 "DeviceBuffer elements must be trivially copyable");
 

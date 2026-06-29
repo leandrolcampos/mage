@@ -29,7 +29,7 @@
 namespace mage {
 namespace detail {
 
-class DeviceState {
+class [[nodiscard]] DeviceState {
 public:
   virtual ~DeviceState() noexcept;
 
@@ -54,7 +54,7 @@ private:
   std::string Architecture;
 };
 
-class StreamState {
+class [[nodiscard]] StreamState {
 public:
   virtual ~StreamState() noexcept;
 
@@ -72,7 +72,7 @@ protected:
 
 class DeviceContextIdentity final {};
 
-class DeviceContextImpl {
+class [[nodiscard]] DeviceContextImpl {
 public:
   virtual ~DeviceContextImpl() noexcept;
 
@@ -85,16 +85,14 @@ public:
   [[nodiscard]] virtual int getID() const noexcept = 0;
   [[nodiscard]] virtual llvm::StringRef getName() const = 0;
   [[nodiscard]] virtual llvm::StringRef getArchitecture() const = 0;
-  [[nodiscard]] virtual llvm::Expected<std::pair<size_t, size_t>>
-  getMemoryInfo() const = 0;
+  virtual llvm::Expected<std::pair<size_t, size_t>> getMemoryInfo() const = 0;
 
   [[nodiscard]] std::shared_ptr<const DeviceContextIdentity>
   getIdentity() const noexcept;
 
-  [[nodiscard]] virtual llvm::Expected<std::shared_ptr<HostBufferStorage>>
+  virtual llvm::Expected<std::shared_ptr<HostBufferStorage>>
   createHostBufferStorage(size_t SizeInBytes) = 0;
-  [[nodiscard]] virtual llvm::Expected<
-      std::shared_ptr<detail::DeviceBufferStorage>>
+  virtual llvm::Expected<std::shared_ptr<detail::DeviceBufferStorage>>
   enqueueCreateBufferStorage(size_t SizeInBytes) = 0;
   virtual llvm::Error enqueueCopyToDeviceStorage(
       std::shared_ptr<detail::DeviceBufferStorage> Dst,
@@ -120,7 +118,7 @@ private:
   std::vector<std::shared_ptr<const void>> PendingResources;
 };
 
-class Backend {
+class [[nodiscard]] Backend {
 public:
   virtual ~Backend() noexcept = default;
 
@@ -132,7 +130,7 @@ public:
   [[nodiscard]] virtual DeviceAPI getAPI() const noexcept = 0;
   [[nodiscard]] int getAPIVersion() const noexcept;
   [[nodiscard]] int getDeviceCount() const noexcept;
-  [[nodiscard]] virtual llvm::Expected<std::unique_ptr<DeviceContextImpl>>
+  virtual llvm::Expected<std::unique_ptr<DeviceContextImpl>>
   createDeviceContextImpl(int DeviceID) = 0;
 
 protected:
@@ -146,7 +144,7 @@ private:
 
 [[nodiscard]] bool isBackendEnabled(DeviceAPI API) noexcept;
 
-[[nodiscard]] llvm::Expected<Backend &> getBackend(DeviceAPI API);
+llvm::Expected<Backend &> getBackend(DeviceAPI API);
 
 } // namespace detail
 } // namespace mage

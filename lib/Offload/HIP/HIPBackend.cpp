@@ -42,8 +42,8 @@ using namespace mage;
 //===----------------------------------------------------------------------===//
 
 template <typename... ArgsTy>
-[[nodiscard]] static llvm::Error check(hipError_t Result, const char *ErrCtxFmt,
-                                       ArgsTy... Args) {
+static llvm::Error check(hipError_t Result, const char *ErrCtxFmt,
+                         ArgsTy... Args) {
   if (Result == hipSuccess)
     return llvm::Error::success();
 
@@ -67,8 +67,7 @@ template <typename... ArgsTy>
 // HIP device helpers
 //===----------------------------------------------------------------------===//
 
-[[nodiscard]] static llvm::Expected<hipDeviceProp_t>
-getDeviceProperties(int DeviceID) {
+static llvm::Expected<hipDeviceProp_t> getDeviceProperties(int DeviceID) {
   hipDeviceProp_t Properties = {};
   if (auto Err =
           check(hipGetDeviceProperties(&Properties, DeviceID),
@@ -79,7 +78,7 @@ getDeviceProperties(int DeviceID) {
 
 namespace {
 
-class CurrentDeviceGuard {
+class [[nodiscard]] CurrentDeviceGuard {
 public:
   ~CurrentDeviceGuard() noexcept {
     if (IsActive)
@@ -99,8 +98,7 @@ public:
 
   CurrentDeviceGuard &operator=(CurrentDeviceGuard &&Other) = delete;
 
-  [[nodiscard]] static llvm::Expected<CurrentDeviceGuard>
-  create(int TemporaryDeviceID) {
+  static llvm::Expected<CurrentDeviceGuard> create(int TemporaryDeviceID) {
     int PreviousDeviceID = 0;
     if (auto Err =
             check(hipGetDevice(&PreviousDeviceID), "error in hipGetDevice"))
@@ -126,10 +124,9 @@ private:
 // HIP device state
 //===----------------------------------------------------------------------===//
 
-class HIPDeviceState final : public detail::DeviceState {
+class [[nodiscard]] HIPDeviceState final : public detail::DeviceState {
 public:
-  [[nodiscard]] static llvm::Expected<std::shared_ptr<HIPDeviceState>>
-  create(int DeviceID) {
+  static llvm::Expected<std::shared_ptr<HIPDeviceState>> create(int DeviceID) {
     auto PropertiesOrErr = getDeviceProperties(DeviceID);
     if (!PropertiesOrErr)
       return PropertiesOrErr.takeError();
@@ -153,7 +150,7 @@ private:
 // HIP stream state
 //===----------------------------------------------------------------------===//
 
-class HIPStreamState final : public detail::StreamState {
+class [[nodiscard]] HIPStreamState final : public detail::StreamState {
 public:
   ~HIPStreamState() noexcept override {
     if (!Stream)
@@ -163,7 +160,7 @@ public:
     consumeErrorWithDebugLogging(destroyStream());
   }
 
-  [[nodiscard]] static llvm::Expected<std::shared_ptr<HIPStreamState>>
+  static llvm::Expected<std::shared_ptr<HIPStreamState>>
   create(std::shared_ptr<HIPDeviceState> Device) {
     auto GuardOrErr = CurrentDeviceGuard::create(Device->getID());
     if (!GuardOrErr)
@@ -236,14 +233,14 @@ private:
 // HIP buffer storage
 //===----------------------------------------------------------------------===//
 
-class HIPHostBufferStorage final : public detail::HostBufferStorage {
+class [[nodiscard]] HIPHostBufferStorage final
+    : public detail::HostBufferStorage {
 public:
   ~HIPHostBufferStorage() noexcept override {
     consumeErrorWithDebugLogging(freeHostBuffer());
   }
 
-  [[nodiscard]] static llvm::Expected<
-      std::shared_ptr<detail::HostBufferStorage>>
+  static llvm::Expected<std::shared_ptr<detail::HostBufferStorage>>
   create(std::shared_ptr<HIPDeviceState> Device, size_t SizeInBytes) {
     assert(SizeInBytes > 0 && "cannot allocate an empty host buffer");
 
@@ -279,14 +276,14 @@ private:
   std::shared_ptr<HIPDeviceState> Device;
 };
 
-class HIPDeviceBufferStorage final : public detail::DeviceBufferStorage {
+class [[nodiscard]] HIPDeviceBufferStorage final
+    : public detail::DeviceBufferStorage {
 public:
   ~HIPDeviceBufferStorage() noexcept override {
     consumeErrorWithDebugLogging(freeDeviceBuffer());
   }
 
-  [[nodiscard]] static llvm::Expected<
-      std::shared_ptr<detail::DeviceBufferStorage>>
+  static llvm::Expected<std::shared_ptr<detail::DeviceBufferStorage>>
   create(std::shared_ptr<HIPDeviceState> Device,
          std::shared_ptr<HIPStreamState> Stream, size_t SizeInBytes) {
     assert(SizeInBytes > 0 && "cannot allocate an empty device buffer");
@@ -330,14 +327,14 @@ private:
 // HIP device context
 //===----------------------------------------------------------------------===//
 
-class HIPDeviceContextImpl final : public detail::DeviceContextImpl {
+class [[nodiscard]] HIPDeviceContextImpl final
+    : public detail::DeviceContextImpl {
 public:
   ~HIPDeviceContextImpl() noexcept override {
     consumeErrorWithDebugLogging(synchronize());
   }
 
-  [[nodiscard]] static llvm::Expected<
-      std::unique_ptr<detail::DeviceContextImpl>>
+  static llvm::Expected<std::unique_ptr<detail::DeviceContextImpl>>
   create(std::shared_ptr<HIPDeviceState> Device) {
     auto StreamOrErr = HIPStreamState::create(Device);
     if (!StreamOrErr)
@@ -361,8 +358,7 @@ public:
     return Device->getArchitecture();
   }
 
-  [[nodiscard]] llvm::Expected<std::pair<size_t, size_t>>
-  getMemoryInfo() const override {
+  llvm::Expected<std::pair<size_t, size_t>> getMemoryInfo() const override {
     auto GuardOrErr = CurrentDeviceGuard::create(Device->getID());
     if (!GuardOrErr)
       return GuardOrErr.takeError();
@@ -377,12 +373,12 @@ public:
     return std::pair<size_t, size_t>(Free, Total);
   }
 
-  [[nodiscard]] llvm::Expected<std::shared_ptr<detail::HostBufferStorage>>
+  llvm::Expected<std::shared_ptr<detail::HostBufferStorage>>
   createHostBufferStorage(size_t SizeInBytes) override {
     return HIPHostBufferStorage::create(Device, SizeInBytes);
   }
 
-  [[nodiscard]] llvm::Expected<std::shared_ptr<detail::DeviceBufferStorage>>
+  llvm::Expected<std::shared_ptr<detail::DeviceBufferStorage>>
   enqueueCreateBufferStorage(size_t SizeInBytes) override {
     return HIPDeviceBufferStorage::create(Device, Stream, SizeInBytes);
   }
@@ -464,9 +460,9 @@ private:
 // HIP backend
 //===----------------------------------------------------------------------===//
 
-class HIPBackend final : public detail::Backend {
+class [[nodiscard]] HIPBackend final : public detail::Backend {
 public:
-  [[nodiscard]] static llvm::Expected<Backend &> get() {
+  static llvm::Expected<Backend &> get() {
     static Backend *Instance = nullptr;
 
     static llvm::once_flag InitFlag;
@@ -508,7 +504,7 @@ public:
     return DeviceAPI::HIP;
   }
 
-  [[nodiscard]] llvm::Expected<std::unique_ptr<detail::DeviceContextImpl>>
+  llvm::Expected<std::unique_ptr<detail::DeviceContextImpl>>
   createDeviceContextImpl(int DeviceID) override {
     auto DeviceOrErr = getOrCreateDeviceState(DeviceID);
     if (!DeviceOrErr)
@@ -521,7 +517,7 @@ private:
   HIPBackend(int APIVersion, int DeviceCount)
       : Backend(APIVersion, DeviceCount), Devices(DeviceCount) {}
 
-  [[nodiscard]] llvm::Expected<std::shared_ptr<HIPDeviceState>>
+  llvm::Expected<std::shared_ptr<HIPDeviceState>>
   getOrCreateDeviceState(int DeviceID) {
     std::lock_guard<std::mutex> Lock(DevicesMutex);
 

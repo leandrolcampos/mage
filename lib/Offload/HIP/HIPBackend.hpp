@@ -19,7 +19,7 @@
 namespace mage {
 namespace detail {
 
-[[nodiscard]] llvm::Expected<Backend &> getHIPBackend();
+llvm::Expected<Backend &> getHIPBackend();
 
 } // namespace detail
 } // namespace mage
