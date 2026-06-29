@@ -339,6 +339,103 @@ Mage does not use C++ exceptions or RTTI in normal project code. Avoid language 
 
 Use LLVM-style facilities such as `isa<>`, `cast<>`, and `dyn_cast<>` where appropriate.
 
+#### Use Contract Specifiers Deliberately
+
+Specifiers such as `[[nodiscard]]`, `const`, `constexpr`, `explicit`, `inline`, `static`, and `noexcept` are part of an interface's contract. Use them to communicate and enforce important semantics, but avoid adding them mechanically when they do not change the caller's useful understanding of the API.
+
+Use `[[nodiscard]]` on a `class` or `struct` when discarding an instance of that type is almost always a bug or at least suspicious. This is common for error/result types, RAII guards, resource handles, and value types whose purpose is to carry computed information.
+
+```cpp
+class [[nodiscard]] DeviceContext {
+  // ...
+};
+
+template <typename T> class [[nodiscard]] DeviceBuffer {
+  // ...
+};
+```
+
+Do not repeat `[[nodiscard]]` on every function that returns a type already marked `[[nodiscard]]`. The type-level annotation is enough and keeps declarations quieter:
+
+```cpp
+llvm::Expected<DeviceContext> createDeviceContext();
+llvm::Error synchronize();
+```
+
+Use function-level `[[nodiscard]]` when the returned type is not itself marked and ignoring the result is probably wrong. This includes predicates, comparisons, accessors, size/count queries, lookup results, handles, raw pointers, references, and pure computations:
+
+```cpp
+[[nodiscard]] bool empty() const noexcept;
+[[nodiscard]] size_t size() const noexcept;
+[[nodiscard]] DeviceAPI getAPI() const noexcept;
+[[nodiscard]] const char *toString(DeviceAPI API) noexcept;
+```
+
+Do not mark assignment operators or command-style mutators merely because they return `*this` or a convenience value. If a return value is intentionally ignored at a call site, make that intent explicit, for example by casting to `void`.
+
+Use `const` to describe object mutability precisely.
+
+- Mark member functions `const` when they do not change the object's logical state. Lazy caches may use `mutable` when that preserves logical constness, but do so sparingly.
+- Use `const T *` or `const T &` when the caller receives access to an object that it must not mutate through that access path.
+- Use `T *` or `T &` for out-parameters and in/out parameters, and document the ownership and nullability expectations when they are not obvious.
+- Avoid top-level `const` on values returned by value, such as `const T getValue()`. It does not protect the caller's copy and can interfere with moves.
+- Avoid top-level `const` on pointer values returned by value, such as `T *const getPointer()`. If the pointee must be read-only, return `const T *` instead.
+- Avoid top-level `const` on by-value parameters in public declarations. It is not part of the function type and is usually implementation detail noise.
+
+Prefer `noexcept` for operations that are truly guaranteed not to fail by throwing: destructors, simple accessors, swaps, move constructors, move assignment operators, and small wrappers over non-throwing operations. Even though Mage normally builds without exceptions, `noexcept` is still a useful part of the API contract and can affect generated code and standard-library behavior.
+
+Do not use `noexcept` on functions that may need to allocate, build diagnostics, call user-provided code, or otherwise report failure through `llvm::Error`, `llvm::Expected<T>`, or another recoverable-error mechanism. Destructors should not propagate recoverable errors; consume, log, or otherwise handle such errors inside the destructor.
+
+Use `constexpr` for functions, constructors, and constants that are naturally usable during constant evaluation. This is especially important for mathematical and numeric library code, where callers should be able to compute simple values at compile time whenever the implementation can support it without contortions.
+
+Good candidates for `constexpr` include pure arithmetic helpers, small value-type constructors, predicates, comparisons, accessors, and fixed constants.
+
+```cpp
+class FloatWidth {
+public:
+  constexpr explicit FloatWidth(unsigned Bits) : Bits(Bits) {}
+
+  [[nodiscard]] constexpr unsigned getBits() const noexcept { return Bits; }
+  [[nodiscard]] constexpr bool isBinary32() const noexcept { return Bits == 32; }
+
+private:
+  unsigned Bits;
+};
+```
+
+Do not force `constexpr` onto code that has important runtime behavior, complex diagnostics, allocation, virtual dispatch, synchronization, or recoverable error handling. In mathematical code, prefer a clear non-`constexpr` implementation over a contorted `constexpr` implementation that weakens validation or makes numerical behavior harder to audit.
+
+Mark single-argument constructors and conversion operators `explicit` unless implicit conversion is a central and intentional part of the type's design. This also applies to constructors that can be called with one argument because the remaining parameters have defaults. Accidental implicit conversions are particularly dangerous in numeric and floating-point code because they can hide narrowing, precision loss, or domain changes.
+
+```cpp
+class BinaryPrecision {
+public:
+  explicit BinaryPrecision(unsigned Bits);
+  explicit operator unsigned() const;
+};
+```
+
+Copy and move constructors should not be marked `explicit`. If an implicit converting constructor is intentionally part of an API, make that choice visible in the surrounding documentation or with the LLVM-style `/*implicit*/` marker:
+
+```cpp
+class StringView {
+public:
+  /*implicit*/ StringView(llvm::StringRef Text);
+};
+```
+
+Use `inline` to satisfy the one-definition rule for non-template functions and variables that must be defined in headers. Do not use it as an optimization request; modern compilers make inlining decisions independently of the keyword. Function templates, functions defined inside a class definition, and `constexpr` functions already have the relevant inline semantics, so do not add a redundant `inline` keyword in those cases.
+
+Prefer out-of-line definitions in `.cpp` files for non-trivial functions. Header-defined helpers should be small, dependency-light, and stable enough that exposing their implementation is worth the compile-time and layering cost. For file-local helpers in `.cpp` files, use `static` or an anonymous namespace to give internal linkage; `inline` is not a substitute for restricted visibility.
+
+Use `static` to express the right kind of independence or linkage:
+
+- use `static` member functions only when the operation does not require an object;
+- use `static constexpr` data members for type-associated compile-time constants;
+- use namespace-scope `static` functions or variables in `.cpp` files for file-local implementation details;
+- avoid namespace-scope `static` definitions in headers, because every translation unit gets a separate entity;
+- avoid function-local `static` state unless lazy initialization or persistent state is intentional and the initialization does not recreate the static-constructor problems described below.
+
 #### Prefer C++-Style Casts
 
 When casting, use `static_cast`, `reinterpret_cast`, and `const_cast`, rather than C-style casts. There are two exceptions to this:
