@@ -33,6 +33,10 @@
 
 namespace mage {
 
+//===----------------------------------------------------------------------===//
+// Host buffers
+//===----------------------------------------------------------------------===//
+
 namespace detail {
 
 class HostBufferStorage {
@@ -44,7 +48,8 @@ public:
   HostBufferStorage(HostBufferStorage &&) = delete;
   HostBufferStorage &operator=(HostBufferStorage &&) = delete;
 
-  [[nodiscard]] void *data() const noexcept;
+  [[nodiscard]] void *data() noexcept;
+  [[nodiscard]] const void *data() const noexcept;
   [[nodiscard]] size_t sizeInBytes() const noexcept;
 
 protected:
@@ -70,9 +75,11 @@ public:
 
   HostBuffer(const HostBuffer &) = delete;
   HostBuffer &operator=(const HostBuffer &) = delete;
+
   HostBuffer(HostBuffer &&Other) noexcept
       : Storage(std::move(Other.Storage)),
         ElementCount(std::exchange(Other.ElementCount, 0)) {}
+
   HostBuffer &operator=(HostBuffer &&Other) noexcept {
     if (this == &Other)
       return *this;
@@ -155,6 +162,183 @@ DeviceContext::createHostBuffer(size_t ElementCount) {
     return StorageOrErr.takeError();
 
   return HostBuffer<T>(std::move(*StorageOrErr), ElementCount);
+}
+
+//===----------------------------------------------------------------------===//
+// Device buffers
+//===----------------------------------------------------------------------===//
+
+namespace detail {
+
+class DeviceBufferStorage {
+public:
+  virtual ~DeviceBufferStorage() noexcept;
+
+  DeviceBufferStorage(const DeviceBufferStorage &) = delete;
+  DeviceBufferStorage &operator=(const DeviceBufferStorage &) = delete;
+  DeviceBufferStorage(DeviceBufferStorage &&) = delete;
+  DeviceBufferStorage &operator=(DeviceBufferStorage &&) = delete;
+
+  [[nodiscard]] void *data() noexcept;
+  [[nodiscard]] const void *data() const noexcept;
+  [[nodiscard]] size_t sizeInBytes() const noexcept;
+
+protected:
+  DeviceBufferStorage(void *Data, size_t SizeInBytes) noexcept;
+
+private:
+  void *Data;
+  size_t SizeInBytes;
+};
+
+} // namespace detail
+
+/// Represents a contiguous block of device-resident global memory.
+template <typename T> class DeviceBuffer {
+  static_assert(is_trivially_copyable_v<T>,
+                "DeviceBuffer elements must be trivially copyable");
+
+public:
+  using value_type = T;
+
+  DeviceBuffer() noexcept = default;
+  ~DeviceBuffer() noexcept = default;
+
+  DeviceBuffer(const DeviceBuffer &) = delete;
+  DeviceBuffer &operator=(const DeviceBuffer &) = delete;
+
+  DeviceBuffer(DeviceBuffer &&Other) noexcept
+      : Storage(std::move(Other.Storage)),
+        OwnerIdentity(std::move(Other.OwnerIdentity)),
+        ElementCount(std::exchange(Other.ElementCount, 0)) {}
+
+  DeviceBuffer &operator=(DeviceBuffer &&Other) noexcept {
+    if (this == &Other)
+      return *this;
+
+    Storage = std::move(Other.Storage);
+    OwnerIdentity = std::move(Other.OwnerIdentity);
+    ElementCount = std::exchange(Other.ElementCount, 0);
+    return *this;
+  }
+
+  [[nodiscard]] T *data() noexcept {
+    assert((Storage || ElementCount == 0) &&
+           "non-empty DeviceBuffer requires storage");
+    if (!Storage)
+      return nullptr;
+
+    return static_cast<T *>(Storage->data());
+  }
+
+  [[nodiscard]] const T *data() const noexcept {
+    assert((Storage || ElementCount == 0) &&
+           "non-empty DeviceBuffer requires storage");
+    if (!Storage)
+      return nullptr;
+
+    return static_cast<const T *>(Storage->data());
+  }
+
+  [[nodiscard]] size_t size() const noexcept { return ElementCount; }
+  [[nodiscard]] bool empty() const noexcept { return ElementCount == 0; }
+
+private:
+  friend class DeviceContext;
+
+  DeviceBuffer(
+      std::shared_ptr<detail::DeviceBufferStorage> Storage,
+      std::shared_ptr<const detail::DeviceContextIdentity> OwnerIdentity,
+      size_t ElementCount) noexcept
+      : Storage(std::move(Storage)), OwnerIdentity(std::move(OwnerIdentity)),
+        ElementCount(ElementCount) {
+    assert(this->Storage && "non-empty DeviceBuffer requires storage");
+    assert(this->OwnerIdentity &&
+           "non-empty DeviceBuffer requires an owner context identity");
+    assert(this->Storage->sizeInBytes() == (ElementCount * sizeof(T)) &&
+           "DeviceBuffer storage byte size mismatch");
+  }
+
+  std::shared_ptr<detail::DeviceBufferStorage> Storage;
+  std::shared_ptr<const detail::DeviceContextIdentity> OwnerIdentity;
+  size_t ElementCount = 0;
+};
+
+template <typename T>
+llvm::Expected<DeviceBuffer<T>>
+DeviceContext::enqueueCreateBuffer(size_t ElementCount) {
+  static_assert(is_trivially_copyable_v<T>,
+                "DeviceBuffer elements must be trivially copyable");
+
+  if (ElementCount == 0)
+    return DeviceBuffer<T>();
+
+  if (ElementCount > static_cast<size_t>(-1) / sizeof(T))
+    return llvm::createStringError("device buffer allocation size overflows "
+                                   "size_t: %zu elements of %zu bytes",
+                                   ElementCount, sizeof(T));
+
+  auto StorageOrErr = enqueueCreateBufferStorage(ElementCount * sizeof(T));
+  if (!StorageOrErr)
+    return StorageOrErr.takeError();
+
+  return DeviceBuffer<T>(std::move(*StorageOrErr), getIdentity(), ElementCount);
+}
+
+//===----------------------------------------------------------------------===//
+// Buffer copy operations
+//===----------------------------------------------------------------------===//
+
+template <typename T>
+llvm::Error DeviceContext::enqueueCopy(DeviceBuffer<T> &Dst,
+                                       const HostBuffer<T> &Src) {
+  static_assert(is_trivially_copyable_v<T>,
+                "buffer elements must be trivially copyable");
+
+  if (Dst.empty())
+    return llvm::Error::success();
+
+  if (Src.size() < Dst.size())
+    return llvm::createStringError(
+        "host-to-device copy requires the source buffer to contain at least "
+        "%zu elements; source contains %zu",
+        Dst.size(), Src.size());
+
+  if (!ownsDeviceContextIdentity(Dst.OwnerIdentity))
+    return llvm::createStringError(
+        "host-to-device copy requires the destination device buffer to have "
+        "been created by this DeviceContext");
+
+  assert(Dst.Storage && "non-empty DeviceBuffer requires storage");
+  assert(Src.Storage && "non-empty HostBuffer requires storage");
+  return enqueueCopyToDeviceStorage(Dst.Storage, Src.Storage,
+                                    Dst.size() * sizeof(T));
+}
+
+template <typename T>
+llvm::Error DeviceContext::enqueueCopy(HostBuffer<T> &Dst,
+                                       const DeviceBuffer<T> &Src) {
+  static_assert(is_trivially_copyable_v<T>,
+                "buffer elements must be trivially copyable");
+
+  if (Dst.empty())
+    return llvm::Error::success();
+
+  if (Src.size() < Dst.size())
+    return llvm::createStringError(
+        "device-to-host copy requires the source buffer to contain at least "
+        "%zu elements; source contains %zu",
+        Dst.size(), Src.size());
+
+  if (!ownsDeviceContextIdentity(Src.OwnerIdentity))
+    return llvm::createStringError(
+        "device-to-host copy requires the source device buffer to have been "
+        "created by this DeviceContext");
+
+  assert(Dst.Storage && "non-empty HostBuffer requires storage");
+  assert(Src.Storage && "non-empty DeviceBuffer requires storage");
+  return enqueueCopyToHostStorage(Dst.Storage, Src.Storage,
+                                  Dst.size() * sizeof(T));
 }
 
 } // namespace mage

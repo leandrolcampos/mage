@@ -27,8 +27,13 @@
 #include "llvm/Support/Error.h"
 #include "llvm/Support/ErrorHandling.h"
 
+#include <assert.h>
+#include <memory>
+#include <mutex>
+#include <stddef.h>
 #include <string>
 #include <utility>
+#include <vector>
 
 using namespace mage;
 
@@ -48,6 +53,39 @@ detail::DeviceState::DeviceState(DeviceAPI API, int DeviceID, std::string Name,
                                  std::string Architecture)
     : API(API), DeviceID(DeviceID), Name(std::move(Name)),
       Architecture(std::move(Architecture)) {}
+
+detail::StreamState::~StreamState() noexcept = default;
+
+detail::DeviceContextImpl::~DeviceContextImpl() noexcept = default;
+
+std::shared_ptr<const detail::DeviceContextIdentity>
+detail::DeviceContextImpl::getIdentity() const noexcept {
+  return Identity;
+}
+
+void detail::DeviceContextImpl::retainPendingResource(
+    std::shared_ptr<const void> Resource) {
+  assert(Resource && "cannot retain a null pending resource");
+
+  std::lock_guard<std::mutex> Lock(PendingResourcesMutex);
+  PendingResources.push_back(std::move(Resource));
+}
+
+size_t detail::DeviceContextImpl::releasePendingResources() noexcept {
+  std::vector<std::shared_ptr<const void>> Resources;
+
+  {
+    std::lock_guard<std::mutex> Lock(PendingResourcesMutex);
+    Resources.swap(PendingResources);
+  }
+
+  size_t Count = Resources.size();
+  Resources.clear();
+  return Count;
+}
+
+detail::DeviceContextImpl::DeviceContextImpl()
+    : Identity(std::make_shared<detail::DeviceContextIdentity>()) {}
 
 int detail::Backend::getAPIVersion() const noexcept { return APIVersion; }
 

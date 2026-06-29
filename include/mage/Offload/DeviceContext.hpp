@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// Declares DeviceContext and related device-query APIs.
+/// Declares DeviceContext and related offload APIs.
 ///
 //===----------------------------------------------------------------------===//
 
@@ -30,6 +30,7 @@
 namespace mage {
 
 template <typename T> class HostBuffer;
+template <typename T> class DeviceBuffer;
 
 enum class DeviceAPI {
   CUDA,
@@ -44,8 +45,10 @@ enum class DeviceAPI {
 [[nodiscard]] llvm::Expected<int> getDeviceCount(DeviceAPI API);
 
 namespace detail {
+class DeviceContextIdentity;
 class DeviceContextImpl;
 class HostBufferStorage;
+class DeviceBufferStorage;
 } // namespace detail
 
 /// Represents a single stream of execution on a particular GPU.
@@ -75,21 +78,83 @@ public:
   /// Returns the free and total memory size for the underlying device.
   [[nodiscard]] llvm::Expected<std::pair<size_t, size_t>> getMemoryInfo() const;
 
-  /// Allocates page-locked host memory containing \p ElementCount values.
+  /// Creates a host buffer synchronously containing \p ElementCount values.
+  ///
+  /// This function allocates page-locked (pinned) host memory that can be used
+  /// efficiently as the host endpoint of transfers between host and device.
   template <typename T>
   [[nodiscard]] llvm::Expected<HostBuffer<T>>
   createHostBuffer(size_t ElementCount);
+
+  /// Enqueues a device buffer creation containing \p ElementCount values.
+  ///
+  /// For GPU devices, the buffer storage is allocated asynchronously in the
+  /// device's global memory and ordered with this context's stream.
+  ///
+  /// The resulting device buffer is bound to this context.
+  template <typename T>
+  [[nodiscard]] llvm::Expected<DeviceBuffer<T>>
+  enqueueCreateBuffer(size_t ElementCount);
+
+  /// Enqueues a copy from \p Src to \p Dst.
+  ///
+  /// The number of elements copied is determined by the size of \p Dst;
+  /// \p Src must contain at least as many elements.
+  ///
+  /// Non-empty device buffer passed to this function must have been created
+  /// by this context.
+  ///
+  /// The underlying storage for both buffers is retained by the context
+  /// and released during synchronization after the copy completes.
+  template <typename T>
+  llvm::Error enqueueCopy(DeviceBuffer<T> &Dst, const HostBuffer<T> &Src);
+
+  /// Enqueues a copy from \p Src to \p Dst.
+  ///
+  /// The number of elements copied is determined by the size of \p Dst;
+  /// \p Src must contain at least as many elements.
+  ///
+  /// Non-empty device buffer passed to this function must have been created
+  /// by this context.
+  ///
+  /// The underlying storage for both buffers is retained by the context
+  /// and released during synchronization after the copy completes.
+  template <typename T>
+  llvm::Error enqueueCopy(HostBuffer<T> &Dst, const DeviceBuffer<T> &Src);
 
   /// Blocks until all asynchronous calls on the underlying stream have
   /// completed.
   llvm::Error synchronize();
 
+  /// Returns true if this stream has previously enqueued work that has not
+  /// completed. Does not block.
+  [[nodiscard]] llvm::Expected<bool> hasPendingWork() const;
+
 private:
   explicit DeviceContext(
       std::unique_ptr<detail::DeviceContextImpl> Impl) noexcept;
 
+  [[nodiscard]] std::shared_ptr<const detail::DeviceContextIdentity>
+  getIdentity() const noexcept;
+
+  [[nodiscard]] bool ownsDeviceContextIdentity(
+      const std::shared_ptr<const detail::DeviceContextIdentity> &Identity)
+      const noexcept;
+
   [[nodiscard]] llvm::Expected<std::shared_ptr<detail::HostBufferStorage>>
   createHostBufferStorage(size_t SizeInBytes);
+
+  [[nodiscard]] llvm::Expected<std::shared_ptr<detail::DeviceBufferStorage>>
+  enqueueCreateBufferStorage(size_t SizeInBytes);
+
+  llvm::Error enqueueCopyToDeviceStorage(
+      std::shared_ptr<detail::DeviceBufferStorage> Dst,
+      std::shared_ptr<const detail::HostBufferStorage> Src, size_t SizeInBytes);
+
+  llvm::Error enqueueCopyToHostStorage(
+      std::shared_ptr<detail::HostBufferStorage> Dst,
+      std::shared_ptr<const detail::DeviceBufferStorage> Src,
+      size_t SizeInBytes);
 
   std::unique_ptr<detail::DeviceContextImpl> Impl;
 };

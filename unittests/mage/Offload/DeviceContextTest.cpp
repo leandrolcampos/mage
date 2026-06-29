@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// Tests DeviceContext and related device-query APIs.
+/// Tests DeviceContext and related offload APIs.
 ///
 //===----------------------------------------------------------------------===//
 

@@ -20,7 +20,8 @@ using namespace mage;
 
 detail::HostBufferStorage::~HostBufferStorage() noexcept = default;
 
-void *detail::HostBufferStorage::data() const noexcept { return Data; }
+void *detail::HostBufferStorage::data() noexcept { return Data; }
+const void *detail::HostBufferStorage::data() const noexcept { return Data; }
 
 size_t detail::HostBufferStorage::sizeInBytes() const noexcept {
   return SizeInBytes;
@@ -28,6 +29,21 @@ size_t detail::HostBufferStorage::sizeInBytes() const noexcept {
 
 detail::HostBufferStorage::HostBufferStorage(void *Data,
                                              size_t SizeInBytes) noexcept
+    : Data(Data), SizeInBytes(SizeInBytes) {
+  assert((Data || SizeInBytes == 0) && "non-empty storage requires data");
+}
+
+detail::DeviceBufferStorage::~DeviceBufferStorage() noexcept = default;
+
+void *detail::DeviceBufferStorage::data() noexcept { return Data; }
+const void *detail::DeviceBufferStorage::data() const noexcept { return Data; }
+
+size_t detail::DeviceBufferStorage::sizeInBytes() const noexcept {
+  return SizeInBytes;
+}
+
+detail::DeviceBufferStorage::DeviceBufferStorage(void *Data,
+                                                 size_t SizeInBytes) noexcept
     : Data(Data), SizeInBytes(SizeInBytes) {
   assert((Data || SizeInBytes == 0) && "non-empty storage requires data");
 }

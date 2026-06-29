@@ -20,9 +20,11 @@
 #include "llvm/Support/Error.h"
 
 #include <memory>
+#include <mutex>
 #include <stddef.h>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace mage {
 namespace detail {
@@ -52,9 +54,27 @@ private:
   std::string Architecture;
 };
 
+class StreamState {
+public:
+  virtual ~StreamState() noexcept;
+
+  StreamState(const StreamState &) = delete;
+  StreamState &operator=(const StreamState &) = delete;
+  StreamState(StreamState &&) = delete;
+  StreamState &operator=(StreamState &&) = delete;
+
+  virtual llvm::Error synchronize() = 0;
+  virtual llvm::Expected<bool> hasPendingWork() const = 0;
+
+protected:
+  StreamState() noexcept = default;
+};
+
+class DeviceContextIdentity final {};
+
 class DeviceContextImpl {
 public:
-  virtual ~DeviceContextImpl() noexcept = default;
+  virtual ~DeviceContextImpl() noexcept;
 
   DeviceContextImpl(const DeviceContextImpl &) = delete;
   DeviceContextImpl &operator=(const DeviceContextImpl &) = delete;
@@ -67,13 +87,37 @@ public:
   [[nodiscard]] virtual llvm::StringRef getArchitecture() const = 0;
   [[nodiscard]] virtual llvm::Expected<std::pair<size_t, size_t>>
   getMemoryInfo() const = 0;
+
+  [[nodiscard]] std::shared_ptr<const DeviceContextIdentity>
+  getIdentity() const noexcept;
+
   [[nodiscard]] virtual llvm::Expected<std::shared_ptr<HostBufferStorage>>
   createHostBufferStorage(size_t SizeInBytes) = 0;
+  [[nodiscard]] virtual llvm::Expected<
+      std::shared_ptr<detail::DeviceBufferStorage>>
+  enqueueCreateBufferStorage(size_t SizeInBytes) = 0;
+  virtual llvm::Error enqueueCopyToDeviceStorage(
+      std::shared_ptr<detail::DeviceBufferStorage> Dst,
+      std::shared_ptr<const detail::HostBufferStorage> Src,
+      size_t SizeInBytes) = 0;
+  virtual llvm::Error enqueueCopyToHostStorage(
+      std::shared_ptr<detail::HostBufferStorage> Dst,
+      std::shared_ptr<const detail::DeviceBufferStorage> Src,
+      size_t SizeInBytes) = 0;
 
   virtual llvm::Error synchronize() = 0;
+  virtual llvm::Expected<bool> hasPendingWork() const = 0;
 
 protected:
-  DeviceContextImpl() noexcept = default;
+  DeviceContextImpl();
+
+  void retainPendingResource(std::shared_ptr<const void> Resource);
+  size_t releasePendingResources() noexcept;
+
+private:
+  std::shared_ptr<const DeviceContextIdentity> Identity;
+  mutable std::mutex PendingResourcesMutex;
+  std::vector<std::shared_ptr<const void>> PendingResources;
 };
 
 class Backend {

@@ -37,6 +37,10 @@
 
 using namespace mage;
 
+//===----------------------------------------------------------------------===//
+// HIP error handling
+//===----------------------------------------------------------------------===//
+
 template <typename... ArgsTy>
 [[nodiscard]] static llvm::Error check(hipError_t Result, const char *ErrCtxFmt,
                                        ArgsTy... Args) {
@@ -58,6 +62,10 @@ template <typename... ArgsTy>
 
   return llvm::createStringError("%s: %s", ErrorContext.c_str(), Description);
 }
+
+//===----------------------------------------------------------------------===//
+// HIP device helpers
+//===----------------------------------------------------------------------===//
 
 [[nodiscard]] static llvm::Expected<hipDeviceProp_t>
 getDeviceProperties(int DeviceID) {
@@ -114,6 +122,10 @@ private:
   bool IsActive = true;
 };
 
+//===----------------------------------------------------------------------===//
+// HIP device state
+//===----------------------------------------------------------------------===//
+
 class HIPDeviceState final : public detail::DeviceState {
 public:
   [[nodiscard]] static llvm::Expected<std::shared_ptr<HIPDeviceState>>
@@ -136,6 +148,93 @@ private:
       : DeviceState(DeviceAPI::HIP, DeviceID, std::move(Name),
                     std::move(Architecture)) {}
 };
+
+//===----------------------------------------------------------------------===//
+// HIP stream state
+//===----------------------------------------------------------------------===//
+
+class HIPStreamState final : public detail::StreamState {
+public:
+  ~HIPStreamState() noexcept override {
+    if (!Stream)
+      return;
+
+    consumeErrorWithDebugLogging(synchronize());
+    consumeErrorWithDebugLogging(destroyStream());
+  }
+
+  [[nodiscard]] static llvm::Expected<std::shared_ptr<HIPStreamState>>
+  create(std::shared_ptr<HIPDeviceState> Device) {
+    auto GuardOrErr = CurrentDeviceGuard::create(Device->getID());
+    if (!GuardOrErr)
+      return GuardOrErr.takeError();
+
+    hipStream_t Stream = nullptr;
+    if (auto Err = check(hipStreamCreateWithFlags(&Stream, hipStreamDefault),
+                         "error in hipStreamCreateWithFlags for device %d",
+                         Device->getID()))
+      return Err;
+
+    return std::shared_ptr<HIPStreamState>(
+        new HIPStreamState(std::move(Device), Stream));
+  }
+
+  [[nodiscard]] hipStream_t get() const noexcept {
+    assert(Stream && "cannot use a destroyed HIP stream");
+    return Stream;
+  }
+
+  llvm::Error synchronize() override {
+    auto GuardOrErr = CurrentDeviceGuard::create(Device->getID());
+    if (!GuardOrErr)
+      return GuardOrErr.takeError();
+
+    return check(hipStreamSynchronize(get()),
+                 "error in hipStreamSynchronize for device %d",
+                 Device->getID());
+  }
+
+  llvm::Expected<bool> hasPendingWork() const override {
+    auto GuardOrErr = CurrentDeviceGuard::create(Device->getID());
+    if (!GuardOrErr)
+      return GuardOrErr.takeError();
+
+    auto Result = hipStreamQuery(get());
+    if (Result == hipErrorNotReady)
+      return true;
+    if (Result == hipSuccess)
+      return false;
+
+    return check(Result, "error in hipStreamQuery for device %d",
+                 Device->getID());
+  }
+
+private:
+  HIPStreamState(std::shared_ptr<HIPDeviceState> Device,
+                 hipStream_t Stream) noexcept
+      : Device(std::move(Device)), Stream(Stream) {}
+
+  llvm::Error destroyStream() {
+    auto GuardOrErr = CurrentDeviceGuard::create(Device->getID());
+    if (!GuardOrErr)
+      return GuardOrErr.takeError();
+
+    if (auto Err =
+            check(hipStreamDestroy(get()),
+                  "error in hipStreamDestroy for device %d", Device->getID()))
+      return Err;
+
+    Stream = nullptr;
+    return llvm::Error::success();
+  }
+
+  std::shared_ptr<HIPDeviceState> Device;
+  hipStream_t Stream;
+};
+
+//===----------------------------------------------------------------------===//
+// HIP buffer storage
+//===----------------------------------------------------------------------===//
 
 class HIPHostBufferStorage final : public detail::HostBufferStorage {
 public:
@@ -180,28 +279,72 @@ private:
   std::shared_ptr<HIPDeviceState> Device;
 };
 
+class HIPDeviceBufferStorage final : public detail::DeviceBufferStorage {
+public:
+  ~HIPDeviceBufferStorage() noexcept override {
+    consumeErrorWithDebugLogging(freeDeviceBuffer());
+  }
+
+  [[nodiscard]] static llvm::Expected<
+      std::shared_ptr<detail::DeviceBufferStorage>>
+  create(std::shared_ptr<HIPDeviceState> Device,
+         std::shared_ptr<HIPStreamState> Stream, size_t SizeInBytes) {
+    assert(SizeInBytes > 0 && "cannot allocate an empty device buffer");
+
+    auto GuardOrErr = CurrentDeviceGuard::create(Device->getID());
+    if (!GuardOrErr)
+      return GuardOrErr.takeError();
+
+    void *Data = nullptr;
+    if (auto Err = check(hipMallocAsync(&Data, SizeInBytes, Stream->get()),
+                         "error in hipMallocAsync for %zu bytes on device %d",
+                         SizeInBytes, Device->getID()))
+      return Err;
+
+    return std::shared_ptr<detail::DeviceBufferStorage>(
+        new HIPDeviceBufferStorage(std::move(Device), std::move(Stream), Data,
+                                   SizeInBytes));
+  }
+
+private:
+  HIPDeviceBufferStorage(std::shared_ptr<HIPDeviceState> Device,
+                         std::shared_ptr<HIPStreamState> Stream, void *Data,
+                         size_t SizeInBytes) noexcept
+      : DeviceBufferStorage(Data, SizeInBytes), Device(std::move(Device)),
+        Stream(std::move(Stream)) {}
+
+  llvm::Error freeDeviceBuffer() {
+    auto GuardOrErr = CurrentDeviceGuard::create(Device->getID());
+    if (!GuardOrErr)
+      return GuardOrErr.takeError();
+
+    return check(hipFreeAsync(data(), Stream->get()),
+                 "error in hipFreeAsync for device %d", Device->getID());
+  }
+
+  std::shared_ptr<HIPDeviceState> Device;
+  std::shared_ptr<HIPStreamState> Stream;
+};
+
+//===----------------------------------------------------------------------===//
+// HIP device context
+//===----------------------------------------------------------------------===//
+
 class HIPDeviceContextImpl final : public detail::DeviceContextImpl {
 public:
   ~HIPDeviceContextImpl() noexcept override {
-    if (Stream)
-      consumeErrorWithDebugLogging(destroyStream());
+    consumeErrorWithDebugLogging(synchronize());
   }
 
   [[nodiscard]] static llvm::Expected<
       std::unique_ptr<detail::DeviceContextImpl>>
   create(std::shared_ptr<HIPDeviceState> Device) {
-    auto GuardOrErr = CurrentDeviceGuard::create(Device->getID());
-    if (!GuardOrErr)
-      return GuardOrErr.takeError();
-
-    hipStream_t Stream = nullptr;
-    if (auto Err = check(hipStreamCreateWithFlags(&Stream, hipStreamDefault),
-                         "error in hipStreamCreateWithFlags for device %d",
-                         Device->getID()))
-      return Err;
+    auto StreamOrErr = HIPStreamState::create(Device);
+    if (!StreamOrErr)
+      return StreamOrErr.takeError();
 
     return std::unique_ptr<detail::DeviceContextImpl>(
-        new HIPDeviceContextImpl(std::move(Device), Stream));
+        new HIPDeviceContextImpl(std::move(Device), std::move(*StreamOrErr)));
   }
 
   [[nodiscard]] DeviceAPI getAPI() const noexcept override {
@@ -239,38 +382,87 @@ public:
     return HIPHostBufferStorage::create(Device, SizeInBytes);
   }
 
-  llvm::Error synchronize() override {
-    auto GuardOrErr = CurrentDeviceGuard::create(Device->getID());
-    if (!GuardOrErr)
-      return GuardOrErr.takeError();
-
-    return check(hipStreamSynchronize(Stream),
-                 "error in hipStreamSynchronize for device %d",
-                 Device->getID());
+  [[nodiscard]] llvm::Expected<std::shared_ptr<detail::DeviceBufferStorage>>
+  enqueueCreateBufferStorage(size_t SizeInBytes) override {
+    return HIPDeviceBufferStorage::create(Device, Stream, SizeInBytes);
   }
 
-private:
-  HIPDeviceContextImpl(std::shared_ptr<HIPDeviceState> Device,
-                       hipStream_t Stream) noexcept
-      : Device(std::move(Device)), Stream(Stream) {}
+  llvm::Error enqueueCopyToDeviceStorage(
+      std::shared_ptr<detail::DeviceBufferStorage> Dst,
+      std::shared_ptr<const detail::HostBufferStorage> Src,
+      size_t SizeInBytes) override {
+    assert(Dst && "copy destination storage must not be null");
+    assert(Src && "copy source storage must not be null");
+    assert(SizeInBytes > 0 && "cannot enqueue an empty copy");
 
-  llvm::Error destroyStream() {
     auto GuardOrErr = CurrentDeviceGuard::create(Device->getID());
     if (!GuardOrErr)
       return GuardOrErr.takeError();
 
-    if (auto Err =
-            check(hipStreamDestroy(Stream),
-                  "error in hipStreamDestroy for device %d", Device->getID()))
+    if (auto Err = check(hipMemcpyAsync(Dst->data(), Src->data(), SizeInBytes,
+                                        hipMemcpyHostToDevice, Stream->get()),
+                         "error in hipMemcpyAsync from host to device for %zu "
+                         "bytes on device %d",
+                         SizeInBytes, Device->getID()))
       return Err;
 
-    Stream = nullptr;
+    retainPendingResource(std::move(Dst));
+    retainPendingResource(std::move(Src));
     return llvm::Error::success();
   }
 
+  llvm::Error enqueueCopyToHostStorage(
+      std::shared_ptr<detail::HostBufferStorage> Dst,
+      std::shared_ptr<const detail::DeviceBufferStorage> Src,
+      size_t SizeInBytes) override {
+    assert(Dst && "copy destination storage must not be null");
+    assert(Src && "copy source storage must not be null");
+    assert(SizeInBytes > 0 && "cannot enqueue an empty copy");
+
+    auto GuardOrErr = CurrentDeviceGuard::create(Device->getID());
+    if (!GuardOrErr)
+      return GuardOrErr.takeError();
+
+    if (auto Err = check(hipMemcpyAsync(Dst->data(), Src->data(), SizeInBytes,
+                                        hipMemcpyDeviceToHost, Stream->get()),
+                         "error in hipMemcpyAsync from device to host for %zu "
+                         "bytes on device %d",
+                         SizeInBytes, Device->getID()))
+      return Err;
+
+    retainPendingResource(std::move(Dst));
+    retainPendingResource(std::move(Src));
+    return llvm::Error::success();
+  }
+
+  llvm::Error synchronize() override {
+    if (auto Err = Stream->synchronize())
+      return Err;
+
+    if (releasePendingResources() == 0)
+      return llvm::Error::success();
+
+    // Releasing pending resources may enqueue follow-up work, such as
+    // asynchronous device-memory frees.
+    return Stream->synchronize();
+  }
+
+  llvm::Expected<bool> hasPendingWork() const override {
+    return Stream->hasPendingWork();
+  }
+
+private:
+  explicit HIPDeviceContextImpl(std::shared_ptr<HIPDeviceState> Device,
+                                std::shared_ptr<HIPStreamState> Stream)
+      : Device(std::move(Device)), Stream(std::move(Stream)) {}
+
   std::shared_ptr<HIPDeviceState> Device;
-  hipStream_t Stream;
+  std::shared_ptr<HIPStreamState> Stream;
 };
+
+//===----------------------------------------------------------------------===//
+// HIP backend
+//===----------------------------------------------------------------------===//
 
 class HIPBackend final : public detail::Backend {
 public:

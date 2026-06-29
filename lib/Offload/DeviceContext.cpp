@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// Implements DeviceContext and related device-query APIs.
+/// Implements DeviceContext and related offload APIs.
 ///
 //===----------------------------------------------------------------------===//
 
@@ -106,13 +106,54 @@ llvm::Expected<std::pair<size_t, size_t>> DeviceContext::getMemoryInfo() const {
   return Impl->getMemoryInfo();
 }
 
+std::shared_ptr<const detail::DeviceContextIdentity>
+DeviceContext::getIdentity() const noexcept {
+  assert(Impl && "cannot use a moved-from DeviceContext");
+  return Impl->getIdentity();
+}
+
+bool DeviceContext::ownsDeviceContextIdentity(
+    const std::shared_ptr<const detail::DeviceContextIdentity> &Identity)
+    const noexcept {
+  assert(Impl && "cannot use a moved-from DeviceContext");
+  return Impl->getIdentity() == Identity;
+}
+
 llvm::Expected<std::shared_ptr<detail::HostBufferStorage>>
 DeviceContext::createHostBufferStorage(size_t SizeInBytes) {
   assert(Impl && "cannot use a moved-from DeviceContext");
   return Impl->createHostBufferStorage(SizeInBytes);
 }
 
+llvm::Expected<std::shared_ptr<detail::DeviceBufferStorage>>
+DeviceContext::enqueueCreateBufferStorage(size_t SizeInBytes) {
+  assert(Impl && "cannot use a moved-from DeviceContext");
+  return Impl->enqueueCreateBufferStorage(SizeInBytes);
+}
+
+llvm::Error DeviceContext::enqueueCopyToDeviceStorage(
+    std::shared_ptr<detail::DeviceBufferStorage> Dst,
+    std::shared_ptr<const detail::HostBufferStorage> Src, size_t SizeInBytes) {
+  assert(Impl && "cannot use a moved-from DeviceContext");
+  return Impl->enqueueCopyToDeviceStorage(std::move(Dst), std::move(Src),
+                                          SizeInBytes);
+}
+
+llvm::Error DeviceContext::enqueueCopyToHostStorage(
+    std::shared_ptr<detail::HostBufferStorage> Dst,
+    std::shared_ptr<const detail::DeviceBufferStorage> Src,
+    size_t SizeInBytes) {
+  assert(Impl && "cannot use a moved-from DeviceContext");
+  return Impl->enqueueCopyToHostStorage(std::move(Dst), std::move(Src),
+                                        SizeInBytes);
+}
+
 llvm::Error DeviceContext::synchronize() {
   assert(Impl && "cannot use a moved-from DeviceContext");
   return Impl->synchronize();
+}
+
+llvm::Expected<bool> DeviceContext::hasPendingWork() const {
+  assert(Impl && "cannot use a moved-from DeviceContext");
+  return Impl->hasPendingWork();
 }
