@@ -240,6 +240,24 @@ public:
     return *this;
   }
 
+  [[nodiscard]] T *data() noexcept {
+    assert((Storage || ElementCount == 0) &&
+           "non-empty DeviceBuffer requires storage");
+    if (!Storage)
+      return nullptr;
+
+    return static_cast<T *>(Storage->data());
+  }
+
+  [[nodiscard]] const T *data() const noexcept {
+    assert((Storage || ElementCount == 0) &&
+           "non-empty DeviceBuffer requires storage");
+    if (!Storage)
+      return nullptr;
+
+    return static_cast<const T *>(Storage->data());
+  }
+
   [[nodiscard]] size_t size() const noexcept { return ElementCount; }
   [[nodiscard]] bool empty() const noexcept { return ElementCount == 0; }
 
