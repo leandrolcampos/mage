@@ -62,7 +62,11 @@ private:
 
 } // namespace detail
 
-/// Represents a contiguous block of host-resident memory.
+/// Owns a typed, contiguous block of host-resident memory.
+///
+/// Host buffers are move-only RAII handles. Non-empty buffers are created by
+/// DeviceContext::createHostBuffer. A default-constructed or moved-from buffer
+/// is empty.
 template <typename T> class [[nodiscard]] HostBuffer {
   static_assert(is_trivially_copyable_v<T>,
                 "HostBuffer elements must be trivially copyable");
@@ -89,6 +93,7 @@ public:
     return *this;
   }
 
+  /// Returns the start of the buffer, or nullptr if the buffer is empty.
   [[nodiscard]] T *data() noexcept {
     assert((Storage || ElementCount == 0) &&
            "non-empty HostBuffer requires storage");
@@ -98,6 +103,7 @@ public:
     return static_cast<T *>(Storage->data());
   }
 
+  /// Returns the start of the buffer, or nullptr if the buffer is empty.
   [[nodiscard]] const T *data() const noexcept {
     assert((Storage || ElementCount == 0) &&
            "non-empty HostBuffer requires storage");
@@ -118,11 +124,17 @@ public:
     return llvm::MutableArrayRef<T>(data(), size());
   }
 
+  /// Returns the element at \p Index.
+  ///
+  /// \p Index must be less than size().
   [[nodiscard]] T &operator[](size_t Index) noexcept {
     assert(Index < size() && "Index must not exceed HostBuffer size");
     return data()[Index];
   }
 
+  /// Returns the element at \p Index.
+  ///
+  /// \p Index must be less than size().
   [[nodiscard]] const T &operator[](size_t Index) const noexcept {
     assert(Index < size() && "Index must not exceed HostBuffer size");
     return data()[Index];
@@ -193,7 +205,11 @@ private:
 
 } // namespace detail
 
-/// Represents a contiguous block of device-resident global memory.
+/// Owns a typed, contiguous block of device-resident global memory.
+///
+/// Device buffers are move-only RAII handles. Non-empty buffers are created by
+/// DeviceContext::enqueueCreateBuffer and remain bound to the creating context.
+/// A default-constructed or moved-from buffer is empty.
 template <typename T> class [[nodiscard]] DeviceBuffer {
   static_assert(is_trivially_copyable_v<T>,
                 "DeviceBuffer elements must be trivially copyable");
@@ -220,24 +236,6 @@ public:
     OwnerIdentity = std::move(Other.OwnerIdentity);
     ElementCount = std::exchange(Other.ElementCount, 0);
     return *this;
-  }
-
-  [[nodiscard]] T *data() noexcept {
-    assert((Storage || ElementCount == 0) &&
-           "non-empty DeviceBuffer requires storage");
-    if (!Storage)
-      return nullptr;
-
-    return static_cast<T *>(Storage->data());
-  }
-
-  [[nodiscard]] const T *data() const noexcept {
-    assert((Storage || ElementCount == 0) &&
-           "non-empty DeviceBuffer requires storage");
-    if (!Storage)
-      return nullptr;
-
-    return static_cast<const T *>(Storage->data());
   }
 
   [[nodiscard]] size_t size() const noexcept { return ElementCount; }
