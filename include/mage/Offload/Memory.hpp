@@ -62,11 +62,12 @@ private:
 
 } // namespace detail
 
-/// Owns a typed, contiguous block of host-resident memory.
+/// Represents a typed, contiguous block of host-resident memory.
 ///
-/// Host buffers are move-only RAII handles. Non-empty buffers are created by
-/// DeviceContext::createHostBuffer. A default-constructed or moved-from buffer
-/// is empty.
+/// Buffers created by DeviceContext::createHostBuffer own host-accessible
+/// storage that can be used as the host endpoint of offload transfers.
+///
+/// A default-constructed, zero-length, or moved-from buffer is empty.
 template <typename T> class [[nodiscard]] HostBuffer {
   static_assert(is_trivially_copyable_v<T>,
                 "HostBuffer elements must be trivially copyable");
@@ -205,11 +206,12 @@ private:
 
 } // namespace detail
 
-/// Owns a typed, contiguous block of device-resident global memory.
+/// Represents a typed, contiguous block of device-resident global memory.
 ///
-/// Device buffers are move-only RAII handles. Non-empty buffers are created by
-/// DeviceContext::enqueueCreateBuffer and remain bound to the creating context.
-/// A default-constructed or moved-from buffer is empty.
+/// Buffers created by DeviceContext::enqueueCreateBuffer own device storage and
+/// remain bound to the creating context.
+///
+/// A default-constructed, zero-length, or moved-from buffer is empty.
 template <typename T> class [[nodiscard]] DeviceBuffer {
   static_assert(is_trivially_copyable_v<T>,
                 "DeviceBuffer elements must be trivially copyable");
