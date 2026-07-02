@@ -391,8 +391,7 @@ public:
   }
 
   static llvm::Expected<std::shared_ptr<detail::DeviceBufferStorage>>
-  create(std::shared_ptr<CUDADeviceState> Device,
-         std::shared_ptr<CUDAStreamState> Stream, size_t SizeInBytes) {
+  create(std::shared_ptr<CUDADeviceState> Device, size_t SizeInBytes) {
     assert(SizeInBytes > 0 && "cannot allocate an empty device buffer");
 
     auto GuardOrErr = CurrentContextGuard::create(Device->getContext());
@@ -400,34 +399,32 @@ public:
       return GuardOrErr.takeError();
 
     CUdeviceptr Data = 0;
-    if (auto Err = check(cuMemAllocAsync(&Data, SizeInBytes, Stream->get()),
-                         "error in cuMemAllocAsync for %zu bytes on device %d",
+    if (auto Err = check(cuMemAlloc(&Data, SizeInBytes),
+                         "error in cuMemAlloc for %zu bytes on device %d",
                          SizeInBytes, Device->getID()))
       return Err;
 
     return std::shared_ptr<detail::DeviceBufferStorage>(
-        new CUDADeviceBufferStorage(std::move(Device), std::move(Stream), Data,
-                                    SizeInBytes));
+        new CUDADeviceBufferStorage(std::move(Device), Data, SizeInBytes));
   }
 
 private:
   CUDADeviceBufferStorage(std::shared_ptr<CUDADeviceState> Device,
-                          std::shared_ptr<CUDAStreamState> Stream,
                           CUdeviceptr Data, size_t SizeInBytes) noexcept
-      : DeviceBufferStorage(toOpaqueDevicePointer(Data), SizeInBytes),
-        Device(std::move(Device)), Stream(std::move(Stream)) {}
+      : DeviceBufferStorage(Device->getIdentity(), toOpaqueDevicePointer(Data),
+                            SizeInBytes),
+        Device(std::move(Device)) {}
 
   llvm::Error freeDeviceBuffer() {
     auto GuardOrErr = CurrentContextGuard::create(Device->getContext());
     if (!GuardOrErr)
       return GuardOrErr.takeError();
 
-    return check(cuMemFreeAsync(toCUDADevicePointer(data()), Stream->get()),
-                 "error in cuMemFreeAsync for device %d", Device->getID());
+    return check(cuMemFree(toCUDADevicePointer(data())),
+                 "error in cuMemFree for device %d", Device->getID());
   }
 
   std::shared_ptr<CUDADeviceState> Device;
-  std::shared_ptr<CUDAStreamState> Stream;
 };
 
 //===----------------------------------------------------------------------===//
@@ -599,8 +596,8 @@ public:
   }
 
   llvm::Expected<std::shared_ptr<detail::DeviceBufferStorage>>
-  enqueueCreateBufferStorage(size_t SizeInBytes) override {
-    return CUDADeviceBufferStorage::create(Device, Stream, SizeInBytes);
+  createBufferStorage(size_t SizeInBytes) override {
+    return CUDADeviceBufferStorage::create(Device, SizeInBytes);
   }
 
   llvm::Expected<std::shared_ptr<detail::DeviceModuleStorage>>
@@ -662,12 +659,8 @@ public:
     if (auto Err = Stream->synchronize())
       return Err;
 
-    if (releasePendingResources() == 0)
-      return llvm::Error::success();
-
-    // Releasing pending resources may enqueue follow-up work, such as
-    // asynchronous device-memory frees.
-    return Stream->synchronize();
+    releasePendingResources();
+    return llvm::Error::success();
   }
 
   llvm::Expected<bool> hasPendingWork() const override {

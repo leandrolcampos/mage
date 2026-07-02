@@ -265,7 +265,7 @@ static_assert(std::is_move_constructible<DeviceBuffer<int>>::value,
 static_assert(std::is_move_assignable<DeviceBuffer<int>>::value,
               "DeviceBuffer must be move assignable");
 
-MAGE_TEST(MemoryTest, SupportsEmptyDeviceBuffers) {
+MAGE_TEST(MemoryTest, SupportsEmptyBuffers) {
   DeviceBuffer<int> Buffer;
 
   MAGE_EXPECT_TRUE(Buffer.empty());
@@ -273,7 +273,7 @@ MAGE_TEST(MemoryTest, SupportsEmptyDeviceBuffers) {
   MAGE_EXPECT_TRUE(Buffer.data() == nullptr);
 }
 
-MAGE_TEST(MemoryTest, CreatesDeviceBuffersForAvailableDevices) {
+MAGE_TEST(MemoryTest, CreatesBuffersForAvailableDevices) {
   forEachDeviceAPI([&](DeviceAPI API) {
     auto CountOrErr = getDeviceCount(API);
     if (!CountOrErr) {
@@ -288,7 +288,7 @@ MAGE_TEST(MemoryTest, CreatesDeviceBuffersForAvailableDevices) {
         MAGE_ASSERT_TRUE(false);
       }
 
-      auto BufferOrErr = ContextOrErr->enqueueCreateBuffer<int>(4);
+      auto BufferOrErr = ContextOrErr->createBuffer<int>(4);
       if (!BufferOrErr) {
         llvm::consumeError(BufferOrErr.takeError());
         MAGE_ASSERT_TRUE(false);
@@ -307,7 +307,7 @@ MAGE_TEST(MemoryTest, CreatesDeviceBuffersForAvailableDevices) {
   });
 }
 
-MAGE_TEST(MemoryTest, CreatesEmptyDeviceBuffersForAvailableDevices) {
+MAGE_TEST(MemoryTest, CreatesEmptyBuffersForAvailableDevices) {
   forEachDeviceAPI([&](DeviceAPI API) {
     auto CountOrErr = getDeviceCount(API);
     if (!CountOrErr) {
@@ -322,7 +322,7 @@ MAGE_TEST(MemoryTest, CreatesEmptyDeviceBuffersForAvailableDevices) {
         MAGE_ASSERT_TRUE(false);
       }
 
-      auto BufferOrErr = ContextOrErr->enqueueCreateBuffer<int>(0);
+      auto BufferOrErr = ContextOrErr->createBuffer<int>(0);
       if (!BufferOrErr) {
         llvm::consumeError(BufferOrErr.takeError());
         MAGE_ASSERT_TRUE(false);
@@ -336,7 +336,7 @@ MAGE_TEST(MemoryTest, CreatesEmptyDeviceBuffersForAvailableDevices) {
   });
 }
 
-MAGE_TEST(MemoryTest, RejectsDeviceBufferAllocationSizeOverflows) {
+MAGE_TEST(MemoryTest, RejectsBufferAllocationSizeOverflows) {
   forEachDeviceAPI([&](DeviceAPI API) {
     auto CountOrErr = getDeviceCount(API);
     if (!CountOrErr) {
@@ -355,8 +355,7 @@ MAGE_TEST(MemoryTest, RejectsDeviceBufferAllocationSizeOverflows) {
 
     constexpr size_t TooLargeElementCount =
         std::numeric_limits<size_t>::max() / sizeof(int) + 1;
-    auto BufferOrErr =
-        ContextOrErr->enqueueCreateBuffer<int>(TooLargeElementCount);
+    auto BufferOrErr = ContextOrErr->createBuffer<int>(TooLargeElementCount);
     if (!BufferOrErr)
       llvm::consumeError(BufferOrErr.takeError());
     else
@@ -364,7 +363,7 @@ MAGE_TEST(MemoryTest, RejectsDeviceBufferAllocationSizeOverflows) {
   });
 }
 
-MAGE_TEST(MemoryTest, MovesDeviceBuffersForAvailableDevices) {
+MAGE_TEST(MemoryTest, MovesBuffersForAvailableDevices) {
   forEachDeviceAPI([&](DeviceAPI API) {
     auto CountOrErr = getDeviceCount(API);
     if (!CountOrErr) {
@@ -379,7 +378,7 @@ MAGE_TEST(MemoryTest, MovesDeviceBuffersForAvailableDevices) {
         MAGE_ASSERT_TRUE(false);
       }
 
-      auto SourceOrErr = ContextOrErr->enqueueCreateBuffer<int>(4);
+      auto SourceOrErr = ContextOrErr->createBuffer<int>(4);
       if (!SourceOrErr) {
         llvm::consumeError(SourceOrErr.takeError());
         MAGE_ASSERT_TRUE(false);
@@ -396,7 +395,7 @@ MAGE_TEST(MemoryTest, MovesDeviceBuffersForAvailableDevices) {
       MAGE_EXPECT_FALSE(MoveConstructed.empty());
       MAGE_EXPECT_TRUE(MoveConstructed.data() != nullptr);
 
-      auto DestinationOrErr = ContextOrErr->enqueueCreateBuffer<int>(2);
+      auto DestinationOrErr = ContextOrErr->createBuffer<int>(2);
       if (!DestinationOrErr) {
         llvm::consumeError(DestinationOrErr.takeError());
         MAGE_ASSERT_TRUE(false);
@@ -483,7 +482,7 @@ MAGE_TEST(MemoryTest, CopiesBuffersForAvailableDevices) {
       Source[2] = 4;
       Source[3] = 2;
 
-      auto IntermediateOrErr = ContextOrErr->enqueueCreateBuffer<int>(4);
+      auto IntermediateOrErr = ContextOrErr->createBuffer<int>(4);
       if (!IntermediateOrErr) {
         llvm::consumeError(IntermediateOrErr.takeError());
         MAGE_ASSERT_TRUE(false);
@@ -523,7 +522,7 @@ MAGE_TEST(MemoryTest, CopiesBuffersForAvailableDevices) {
   });
 }
 
-MAGE_TEST(MemoryTest, RejectsCopiesFromTooSmallSourceBuffers) {
+MAGE_TEST(MemoryTest, RejectsCopiesFromTooSmallSources) {
   forEachDeviceAPI([&](DeviceAPI API) {
     auto CountOrErr = getDeviceCount(API);
     if (!CountOrErr) {
@@ -546,7 +545,7 @@ MAGE_TEST(MemoryTest, RejectsCopiesFromTooSmallSourceBuffers) {
       MAGE_ASSERT_TRUE(false);
     }
 
-    auto LargeDeviceOrErr = ContextOrErr->enqueueCreateBuffer<int>(4);
+    auto LargeDeviceOrErr = ContextOrErr->createBuffer<int>(4);
     if (!LargeDeviceOrErr) {
       llvm::consumeError(LargeDeviceOrErr.takeError());
       MAGE_ASSERT_TRUE(false);
@@ -564,7 +563,7 @@ MAGE_TEST(MemoryTest, RejectsCopiesFromTooSmallSourceBuffers) {
       MAGE_ASSERT_TRUE(false);
     }
 
-    auto SmallDeviceOrErr = ContextOrErr->enqueueCreateBuffer<int>(2);
+    auto SmallDeviceOrErr = ContextOrErr->createBuffer<int>(2);
     if (!SmallDeviceOrErr) {
       llvm::consumeError(SmallDeviceOrErr.takeError());
       MAGE_ASSERT_TRUE(false);
@@ -578,7 +577,7 @@ MAGE_TEST(MemoryTest, RejectsCopiesFromTooSmallSourceBuffers) {
   });
 }
 
-MAGE_TEST(MemoryTest, RejectsCopiesWithDeviceBuffersFromOtherContexts) {
+MAGE_TEST(MemoryTest, CopiesBuffersCreatedByOtherContextsOnSameDevice) {
   forEachDeviceAPI([&](DeviceAPI API) {
     auto CountOrErr = getDeviceCount(API);
     if (!CountOrErr) {
@@ -605,17 +604,23 @@ MAGE_TEST(MemoryTest, RejectsCopiesWithDeviceBuffersFromOtherContexts) {
         MAGE_ASSERT_TRUE(false);
       }
 
-      auto ForeignDeviceOrErr = OtherContextOrErr->enqueueCreateBuffer<int>(4);
-      if (!ForeignDeviceOrErr) {
-        llvm::consumeError(ForeignDeviceOrErr.takeError());
+      HostBuffer<int> &HostSource = *HostSourceOrErr;
+      HostSource[0] = 3;
+      HostSource[1] = 1;
+      HostSource[2] = 4;
+      HostSource[3] = 2;
+
+      auto DeviceBufferOrErr = OtherContextOrErr->createBuffer<int>(4);
+      if (!DeviceBufferOrErr) {
+        llvm::consumeError(DeviceBufferOrErr.takeError());
         MAGE_ASSERT_TRUE(false);
       }
 
       if (auto Err =
-              ContextOrErr->enqueueCopy(*ForeignDeviceOrErr, *HostSourceOrErr))
+              ContextOrErr->enqueueCopy(*DeviceBufferOrErr, *HostSourceOrErr)) {
         llvm::consumeError(std::move(Err));
-      else
-        MAGE_EXPECT_TRUE(false);
+        MAGE_ASSERT_TRUE(false);
+      }
 
       auto HostDestinationOrErr = ContextOrErr->createHostBuffer<int>(4);
       if (!HostDestinationOrErr) {
@@ -624,10 +629,76 @@ MAGE_TEST(MemoryTest, RejectsCopiesWithDeviceBuffersFromOtherContexts) {
       }
 
       if (auto Err = ContextOrErr->enqueueCopy(*HostDestinationOrErr,
-                                               *ForeignDeviceOrErr))
+                                               *DeviceBufferOrErr)) {
         llvm::consumeError(std::move(Err));
-      else
-        MAGE_EXPECT_TRUE(false);
+        MAGE_ASSERT_TRUE(false);
+      }
+
+      if (auto Err = ContextOrErr->synchronize()) {
+        llvm::consumeError(std::move(Err));
+        MAGE_ASSERT_TRUE(false);
+      }
+
+      HostBuffer<int> &HostDestination = *HostDestinationOrErr;
+      MAGE_EXPECT_EQ(HostDestination[0], 3);
+      MAGE_EXPECT_EQ(HostDestination[1], 1);
+      MAGE_EXPECT_EQ(HostDestination[2], 4);
+      MAGE_EXPECT_EQ(HostDestination[3], 2);
     }
+  });
+}
+
+MAGE_TEST(MemoryTest, RejectsCopiesWithBuffersFromOtherDevices) {
+  forEachDeviceAPI([&](DeviceAPI API) {
+    auto CountOrErr = getDeviceCount(API);
+    if (!CountOrErr) {
+      llvm::consumeError(CountOrErr.takeError());
+      return;
+    }
+
+    if (*CountOrErr < 2)
+      return;
+
+    auto ContextOrErr = DeviceContext::create(API, 0);
+    if (!ContextOrErr) {
+      llvm::consumeError(ContextOrErr.takeError());
+      MAGE_ASSERT_TRUE(false);
+    }
+
+    auto OtherContextOrErr = DeviceContext::create(API, 1);
+    if (!OtherContextOrErr) {
+      llvm::consumeError(OtherContextOrErr.takeError());
+      MAGE_ASSERT_TRUE(false);
+    }
+
+    auto HostSourceOrErr = ContextOrErr->createHostBuffer<int>(4);
+    if (!HostSourceOrErr) {
+      llvm::consumeError(HostSourceOrErr.takeError());
+      MAGE_ASSERT_TRUE(false);
+    }
+
+    auto ForeignDeviceOrErr = OtherContextOrErr->createBuffer<int>(4);
+    if (!ForeignDeviceOrErr) {
+      llvm::consumeError(ForeignDeviceOrErr.takeError());
+      MAGE_ASSERT_TRUE(false);
+    }
+
+    if (auto Err =
+            ContextOrErr->enqueueCopy(*ForeignDeviceOrErr, *HostSourceOrErr))
+      llvm::consumeError(std::move(Err));
+    else
+      MAGE_EXPECT_TRUE(false);
+
+    auto HostDestinationOrErr = ContextOrErr->createHostBuffer<int>(4);
+    if (!HostDestinationOrErr) {
+      llvm::consumeError(HostDestinationOrErr.takeError());
+      MAGE_ASSERT_TRUE(false);
+    }
+
+    if (auto Err = ContextOrErr->enqueueCopy(*HostDestinationOrErr,
+                                             *ForeignDeviceOrErr))
+      llvm::consumeError(std::move(Err));
+    else
+      MAGE_EXPECT_TRUE(false);
   });
 }

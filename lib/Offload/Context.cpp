@@ -108,17 +108,11 @@ llvm::Expected<std::pair<size_t, size_t>> DeviceContext::getMemoryInfo() const {
   return Impl->getMemoryInfo();
 }
 
-std::shared_ptr<const detail::DeviceContextIdentity>
-DeviceContext::getIdentity() const noexcept {
-  assert(Impl && "cannot use a moved-from DeviceContext");
-  return Impl->getIdentity();
-}
-
-bool DeviceContext::ownsDeviceContextIdentity(
-    const std::shared_ptr<const detail::DeviceContextIdentity> &Identity)
+bool DeviceContext::ownsDeviceIdentity(
+    const std::shared_ptr<const detail::DeviceIdentity> &Identity)
     const noexcept {
   assert(Impl && "cannot use a moved-from DeviceContext");
-  return Impl->getIdentity() == Identity;
+  return Impl->getDeviceIdentity() == Identity;
 }
 
 llvm::Expected<std::shared_ptr<detail::HostBufferStorage>>
@@ -128,9 +122,9 @@ DeviceContext::createHostBufferStorage(size_t SizeInBytes) {
 }
 
 llvm::Expected<std::shared_ptr<detail::DeviceBufferStorage>>
-DeviceContext::enqueueCreateBufferStorage(size_t SizeInBytes) {
+DeviceContext::createBufferStorage(size_t SizeInBytes) {
   assert(Impl && "cannot use a moved-from DeviceContext");
-  return Impl->enqueueCreateBufferStorage(SizeInBytes);
+  return Impl->createBufferStorage(SizeInBytes);
 }
 
 llvm::Error DeviceContext::enqueueCopyToDeviceStorage(

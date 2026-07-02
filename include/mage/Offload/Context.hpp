@@ -47,7 +47,7 @@ enum class DeviceAPI {
 llvm::Expected<int> getDeviceCount(DeviceAPI API);
 
 namespace detail {
-class DeviceContextIdentity;
+class DeviceIdentity;
 class DeviceContextImpl;
 class HostBufferStorage;
 class DeviceBufferStorage;
@@ -89,22 +89,20 @@ public:
   template <typename T>
   llvm::Expected<HostBuffer<T>> createHostBuffer(size_t ElementCount);
 
-  /// Enqueues a device buffer creation containing \p ElementCount values.
+  /// Creates a device buffer synchronously containing \p ElementCount values.
   ///
-  /// For GPU devices, the buffer storage is allocated asynchronously in the
-  /// device's global memory and ordered with this context's stream.
-  ///
-  /// The resulting device buffer is bound to this context.
+  /// The resulting device buffer is bound to the device associated with this
+  /// context.
   template <typename T>
-  llvm::Expected<DeviceBuffer<T>> enqueueCreateBuffer(size_t ElementCount);
+  llvm::Expected<DeviceBuffer<T>> createBuffer(size_t ElementCount);
 
   /// Enqueues a copy from \p Src to \p Dst.
   ///
   /// The number of elements copied is determined by the size of \p Dst;
   /// \p Src must contain at least as many elements.
   ///
-  /// Non-empty device buffer passed to this function must have been created
-  /// by this context.
+  /// Non-empty device buffers passed to this function must be bound to the
+  /// device associated with this context.
   ///
   /// The underlying storage for both buffers is retained by the context
   /// and released during synchronization after the copy completes.
@@ -116,8 +114,8 @@ public:
   /// The number of elements copied is determined by the size of \p Dst;
   /// \p Src must contain at least as many elements.
   ///
-  /// Non-empty device buffer passed to this function must have been created
-  /// by this context.
+  /// Non-empty device buffers passed to this function must be bound to the
+  /// device associated with this context.
   ///
   /// The underlying storage for both buffers is retained by the context
   /// and released during synchronization after the copy completes.
@@ -141,18 +139,15 @@ private:
   explicit DeviceContext(
       std::unique_ptr<detail::DeviceContextImpl> Impl) noexcept;
 
-  [[nodiscard]] std::shared_ptr<const detail::DeviceContextIdentity>
-  getIdentity() const noexcept;
-
-  [[nodiscard]] bool ownsDeviceContextIdentity(
-      const std::shared_ptr<const detail::DeviceContextIdentity> &Identity)
+  [[nodiscard]] bool ownsDeviceIdentity(
+      const std::shared_ptr<const detail::DeviceIdentity> &Identity)
       const noexcept;
 
   llvm::Expected<std::shared_ptr<detail::HostBufferStorage>>
   createHostBufferStorage(size_t SizeInBytes);
 
   llvm::Expected<std::shared_ptr<detail::DeviceBufferStorage>>
-  enqueueCreateBufferStorage(size_t SizeInBytes);
+  createBufferStorage(size_t SizeInBytes);
 
   llvm::Error enqueueCopyToDeviceStorage(
       std::shared_ptr<detail::DeviceBufferStorage> Dst,

@@ -288,8 +288,7 @@ public:
   }
 
   static llvm::Expected<std::shared_ptr<detail::DeviceBufferStorage>>
-  create(std::shared_ptr<HIPDeviceState> Device,
-         std::shared_ptr<HIPStreamState> Stream, size_t SizeInBytes) {
+  create(std::shared_ptr<HIPDeviceState> Device, size_t SizeInBytes) {
     assert(SizeInBytes > 0 && "cannot allocate an empty device buffer");
 
     auto GuardOrErr = CurrentDeviceGuard::create(Device->getID());
@@ -297,34 +296,31 @@ public:
       return GuardOrErr.takeError();
 
     void *Data = nullptr;
-    if (auto Err = check(hipMallocAsync(&Data, SizeInBytes, Stream->get()),
-                         "error in hipMallocAsync for %zu bytes on device %d",
+    if (auto Err = check(hipMalloc(&Data, SizeInBytes),
+                         "error in hipMalloc for %zu bytes on device %d",
                          SizeInBytes, Device->getID()))
       return Err;
 
     return std::shared_ptr<detail::DeviceBufferStorage>(
-        new HIPDeviceBufferStorage(std::move(Device), std::move(Stream), Data,
-                                   SizeInBytes));
+        new HIPDeviceBufferStorage(std::move(Device), Data, SizeInBytes));
   }
 
 private:
-  HIPDeviceBufferStorage(std::shared_ptr<HIPDeviceState> Device,
-                         std::shared_ptr<HIPStreamState> Stream, void *Data,
+  HIPDeviceBufferStorage(std::shared_ptr<HIPDeviceState> Device, void *Data,
                          size_t SizeInBytes) noexcept
-      : DeviceBufferStorage(Data, SizeInBytes), Device(std::move(Device)),
-        Stream(std::move(Stream)) {}
+      : DeviceBufferStorage(Device->getIdentity(), Data, SizeInBytes),
+        Device(std::move(Device)) {}
 
   llvm::Error freeDeviceBuffer() {
     auto GuardOrErr = CurrentDeviceGuard::create(Device->getID());
     if (!GuardOrErr)
       return GuardOrErr.takeError();
 
-    return check(hipFreeAsync(data(), Stream->get()),
-                 "error in hipFreeAsync for device %d", Device->getID());
+    return check(hipFree(data()), "error in hipFree for device %d",
+                 Device->getID());
   }
 
   std::shared_ptr<HIPDeviceState> Device;
-  std::shared_ptr<HIPStreamState> Stream;
 };
 
 //===----------------------------------------------------------------------===//
@@ -496,8 +492,8 @@ public:
   }
 
   llvm::Expected<std::shared_ptr<detail::DeviceBufferStorage>>
-  enqueueCreateBufferStorage(size_t SizeInBytes) override {
-    return HIPDeviceBufferStorage::create(Device, Stream, SizeInBytes);
+  createBufferStorage(size_t SizeInBytes) override {
+    return HIPDeviceBufferStorage::create(Device, SizeInBytes);
   }
 
   llvm::Expected<std::shared_ptr<detail::DeviceModuleStorage>>
@@ -557,12 +553,8 @@ public:
     if (auto Err = Stream->synchronize())
       return Err;
 
-    if (releasePendingResources() == 0)
-      return llvm::Error::success();
-
-    // Releasing pending resources may enqueue follow-up work, such as
-    // asynchronous device-memory frees.
-    return Stream->synchronize();
+    releasePendingResources();
+    return llvm::Error::success();
   }
 
   llvm::Expected<bool> hasPendingWork() const override {

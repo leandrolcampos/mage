@@ -29,8 +29,6 @@
 namespace mage {
 namespace detail {
 
-class DeviceModuleStorage;
-
 class DeviceIdentity final {};
 
 class [[nodiscard]] DeviceState {
@@ -77,7 +75,7 @@ protected:
   StreamState() noexcept = default;
 };
 
-class DeviceContextIdentity final {};
+class DeviceModuleStorage;
 
 class [[nodiscard]] DeviceContextImpl {
 public:
@@ -94,15 +92,13 @@ public:
   [[nodiscard]] virtual llvm::StringRef getArchitecture() const = 0;
   virtual llvm::Expected<std::pair<size_t, size_t>> getMemoryInfo() const = 0;
 
-  [[nodiscard]] std::shared_ptr<const DeviceContextIdentity>
-  getIdentity() const noexcept;
   [[nodiscard]] virtual std::shared_ptr<const DeviceIdentity>
   getDeviceIdentity() const noexcept = 0;
 
   virtual llvm::Expected<std::shared_ptr<HostBufferStorage>>
   createHostBufferStorage(size_t SizeInBytes) = 0;
   virtual llvm::Expected<std::shared_ptr<detail::DeviceBufferStorage>>
-  enqueueCreateBufferStorage(size_t SizeInBytes) = 0;
+  createBufferStorage(size_t SizeInBytes) = 0;
   virtual llvm::Error enqueueCopyToDeviceStorage(
       std::shared_ptr<detail::DeviceBufferStorage> Dst,
       std::shared_ptr<const detail::HostBufferStorage> Src,
@@ -121,10 +117,9 @@ protected:
   DeviceContextImpl();
 
   void retainPendingResource(std::shared_ptr<const void> Resource);
-  size_t releasePendingResources() noexcept;
+  void releasePendingResources() noexcept;
 
 private:
-  std::shared_ptr<const DeviceContextIdentity> Identity;
   mutable std::mutex PendingResourcesMutex;
   std::vector<std::shared_ptr<const void>> PendingResources;
 };
