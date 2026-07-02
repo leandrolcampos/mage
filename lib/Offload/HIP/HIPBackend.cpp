@@ -266,7 +266,8 @@ public:
 private:
   HIPHostBufferStorage(std::shared_ptr<HIPDeviceState> Device, void *Data,
                        size_t SizeInBytes) noexcept
-      : HostBufferStorage(Data, SizeInBytes), Device(std::move(Device)) {}
+      : HostBufferStorage(DeviceAPI::HIP, Data, SizeInBytes),
+        Device(std::move(Device)) {}
 
   llvm::Error freeHostBuffer() {
     auto GuardOrErr = CurrentDeviceGuard::create(Device->getID());

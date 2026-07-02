@@ -28,6 +28,7 @@ using namespace mage;
 
 namespace {
 constexpr DeviceAPI DeviceAPIs[] = {DeviceAPI::CUDA, DeviceAPI::HIP};
+constexpr size_t DeviceAPICount = sizeof(DeviceAPIs) / sizeof(DeviceAPIs[0]);
 } // namespace
 
 template <typename Function> static void forEachDeviceAPI(Function &&Fn) {
@@ -701,4 +702,77 @@ MAGE_TEST(MemoryTest, RejectsCopiesWithBuffersFromOtherDevices) {
     else
       MAGE_EXPECT_TRUE(false);
   });
+}
+
+MAGE_TEST(MemoryTest, RejectsCopiesWithHostBuffersFromOtherAPIs) {
+  for (size_t I = 0; I < DeviceAPICount; ++I) {
+    DeviceAPI API = DeviceAPIs[I];
+
+    auto CountOrErr = getDeviceCount(API);
+    if (!CountOrErr) {
+      llvm::consumeError(CountOrErr.takeError());
+      continue;
+    }
+
+    if (*CountOrErr == 0)
+      continue;
+
+    for (size_t J = I + 1; J < DeviceAPICount; ++J) {
+      DeviceAPI OtherAPI = DeviceAPIs[J];
+
+      auto OtherCountOrErr = getDeviceCount(OtherAPI);
+      if (!OtherCountOrErr) {
+        llvm::consumeError(OtherCountOrErr.takeError());
+        continue;
+      }
+
+      if (*OtherCountOrErr == 0)
+        continue;
+
+      auto ContextOrErr = DeviceContext::create(API);
+      if (!ContextOrErr) {
+        llvm::consumeError(ContextOrErr.takeError());
+        MAGE_ASSERT_TRUE(false);
+      }
+
+      auto OtherContextOrErr = DeviceContext::create(OtherAPI);
+      if (!OtherContextOrErr) {
+        llvm::consumeError(OtherContextOrErr.takeError());
+        MAGE_ASSERT_TRUE(false);
+      }
+
+      auto DeviceBufferOrErr = ContextOrErr->createBuffer<int>(4);
+      if (!DeviceBufferOrErr) {
+        llvm::consumeError(DeviceBufferOrErr.takeError());
+        MAGE_ASSERT_TRUE(false);
+      }
+
+      auto ForeignHostSourceOrErr = OtherContextOrErr->createHostBuffer<int>(4);
+      if (!ForeignHostSourceOrErr) {
+        llvm::consumeError(ForeignHostSourceOrErr.takeError());
+        MAGE_ASSERT_TRUE(false);
+      }
+
+      if (auto Err = ContextOrErr->enqueueCopy(*DeviceBufferOrErr,
+                                               *ForeignHostSourceOrErr))
+        llvm::consumeError(std::move(Err));
+      else
+        MAGE_EXPECT_TRUE(false);
+
+      auto ForeignHostDestinationOrErr =
+          OtherContextOrErr->createHostBuffer<int>(4);
+      if (!ForeignHostDestinationOrErr) {
+        llvm::consumeError(ForeignHostDestinationOrErr.takeError());
+        MAGE_ASSERT_TRUE(false);
+      }
+
+      if (auto Err = ContextOrErr->enqueueCopy(*ForeignHostDestinationOrErr,
+                                               *DeviceBufferOrErr))
+        llvm::consumeError(std::move(Err));
+      else
+        MAGE_EXPECT_TRUE(false);
+
+      return;
+    }
+  }
 }

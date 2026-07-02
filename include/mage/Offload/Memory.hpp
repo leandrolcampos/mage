@@ -48,14 +48,16 @@ public:
   HostBufferStorage(HostBufferStorage &&) = delete;
   HostBufferStorage &operator=(HostBufferStorage &&) = delete;
 
+  [[nodiscard]] DeviceAPI getAPI() const noexcept;
   [[nodiscard]] void *data() noexcept;
   [[nodiscard]] const void *data() const noexcept;
   [[nodiscard]] size_t sizeInBytes() const noexcept;
 
 protected:
-  HostBufferStorage(void *Data, size_t SizeInBytes) noexcept;
+  HostBufferStorage(DeviceAPI API, void *Data, size_t SizeInBytes) noexcept;
 
 private:
+  DeviceAPI API;
   void *Data;
   size_t SizeInBytes;
 };
@@ -65,7 +67,8 @@ private:
 /// Represents a typed, contiguous block of host-resident memory.
 ///
 /// Buffers created by DeviceContext::createHostBuffer own host-accessible
-/// storage that can be used as the host endpoint of offload transfers.
+/// storage that can be used as the host endpoint of offload transfers through
+/// the API that created it.
 ///
 /// A default-constructed, zero-length, or moved-from buffer is empty.
 template <typename T> class [[nodiscard]] HostBuffer {
@@ -321,6 +324,12 @@ llvm::Error DeviceContext::enqueueCopy(DeviceBuffer<T> &Dst,
   assert(Dst.Storage && "non-empty DeviceBuffer requires storage");
   assert(Src.Storage && "non-empty HostBuffer requires storage");
 
+  if (Src.Storage->getAPI() != getAPI())
+    return llvm::createStringError(
+        "host-to-device copy requires the source HostBuffer to have been "
+        "created for the %s API",
+        toString(getAPI()));
+
   if (!ownsDeviceIdentity(Dst.Storage->getDeviceIdentity()))
     return llvm::createStringError(
         "host-to-device copy requires the destination device buffer to have "
@@ -347,6 +356,12 @@ llvm::Error DeviceContext::enqueueCopy(HostBuffer<T> &Dst,
 
   assert(Dst.Storage && "non-empty HostBuffer requires storage");
   assert(Src.Storage && "non-empty DeviceBuffer requires storage");
+
+  if (Dst.Storage->getAPI() != getAPI())
+    return llvm::createStringError(
+        "device-to-host copy requires the destination HostBuffer to have been "
+        "created for the %s API",
+        toString(getAPI()));
 
   if (!ownsDeviceIdentity(Src.Storage->getDeviceIdentity()))
     return llvm::createStringError(

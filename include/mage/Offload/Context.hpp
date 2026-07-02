@@ -82,17 +82,19 @@ public:
   /// context.
   llvm::Expected<std::pair<size_t, size_t>> getMemoryInfo() const;
 
-  /// Creates a host buffer synchronously containing \p ElementCount values.
+  /// Creates a host buffer containing \p ElementCount values.
   ///
-  /// This function allocates page-locked (pinned) host memory that can be used
-  /// efficiently as the host endpoint of transfers between host and device.
+  /// Non-empty host buffers are bound to the API used to handle the device
+  /// associated with this context.
+  ///
+  /// Non-empty host buffers own page-locked (pinned) host memory that can be
+  /// used efficiently as the host endpoint of transfers using that API.
   template <typename T>
   llvm::Expected<HostBuffer<T>> createHostBuffer(size_t ElementCount);
 
   /// Creates a device buffer synchronously containing \p ElementCount values.
   ///
-  /// The resulting device buffer is bound to the device associated with this
-  /// context.
+  /// Non-empty buffers are bound to the device associated with this context.
   template <typename T>
   llvm::Expected<DeviceBuffer<T>> createBuffer(size_t ElementCount);
 
@@ -101,8 +103,10 @@ public:
   /// The number of elements copied is determined by the size of \p Dst;
   /// \p Src must contain at least as many elements.
   ///
-  /// Non-empty device buffers passed to this function must be bound to the
-  /// device associated with this context.
+  /// Non-empty \p Dst must be bound to the device associated with this context.
+  ///
+  /// Non-empty \p Src must be bound to the API used to handle the device
+  /// associated with this context.
   ///
   /// The underlying storage for both buffers is retained by the context
   /// and released during synchronization after the copy completes.
@@ -114,8 +118,10 @@ public:
   /// The number of elements copied is determined by the size of \p Dst;
   /// \p Src must contain at least as many elements.
   ///
-  /// Non-empty device buffers passed to this function must be bound to the
-  /// device associated with this context.
+  /// Non-empty \p Dst must be bound to the API used to handle the device
+  /// associated with this context.
+  ///
+  /// Non-empty \p Src must be bound to the device associated with this context.
   ///
   /// The underlying storage for both buffers is retained by the context
   /// and released during synchronization after the copy completes.
