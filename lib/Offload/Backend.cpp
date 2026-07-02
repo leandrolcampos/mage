@@ -49,10 +49,16 @@ llvm::StringRef detail::DeviceState::getArchitecture() const noexcept {
   return Architecture;
 }
 
+std::shared_ptr<const detail::DeviceIdentity>
+detail::DeviceState::getIdentity() const noexcept {
+  return Identity;
+}
+
 detail::DeviceState::DeviceState(DeviceAPI API, int DeviceID, std::string Name,
                                  std::string Architecture)
     : API(API), DeviceID(DeviceID), Name(std::move(Name)),
-      Architecture(std::move(Architecture)) {}
+      Architecture(std::move(Architecture)),
+      Identity(std::make_shared<detail::DeviceIdentity>()) {}
 
 detail::StreamState::~StreamState() noexcept = default;
 

@@ -1,7 +1,8 @@
 set(offload_sources
   Backend.cpp
   Context.cpp
-  Memory.cpp)
+  Memory.cpp
+  Module.cpp)
 
 set(offload_link_libraries
   MageSupport

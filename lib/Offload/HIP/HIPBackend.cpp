@@ -16,6 +16,7 @@
 #include "Backend.hpp"
 
 #include "mage/Offload/Memory.hpp"
+#include "mage/Offload/Module.hpp"
 #include "mage/Support/Error.hpp"
 
 #include "llvm/ADT/StringRef.h"
@@ -28,6 +29,7 @@
 #include <hip/hip_runtime_api.h>
 
 #include <assert.h>
+#include <limits>
 #include <memory>
 #include <mutex>
 #include <stddef.h>
@@ -153,10 +155,9 @@ private:
 class [[nodiscard]] HIPStreamState final : public detail::StreamState {
 public:
   ~HIPStreamState() noexcept override {
-    if (!Stream)
-      return;
+    if (Stream)
+      consumeErrorWithDebugLogging(synchronize());
 
-    consumeErrorWithDebugLogging(synchronize());
     consumeErrorWithDebugLogging(destroyStream());
   }
 
@@ -212,12 +213,15 @@ private:
       : Device(std::move(Device)), Stream(Stream) {}
 
   llvm::Error destroyStream() {
+    if (!Stream)
+      return llvm::Error::success();
+
     auto GuardOrErr = CurrentDeviceGuard::create(Device->getID());
     if (!GuardOrErr)
       return GuardOrErr.takeError();
 
     if (auto Err =
-            check(hipStreamDestroy(get()),
+            check(hipStreamDestroy(Stream),
                   "error in hipStreamDestroy for device %d", Device->getID()))
       return Err;
 
@@ -324,6 +328,114 @@ private:
 };
 
 //===----------------------------------------------------------------------===//
+// HIP module storage
+//===----------------------------------------------------------------------===//
+
+class [[nodiscard]] HIPDeviceFunctionStorage final
+    : public detail::DeviceFunctionStorage {
+public:
+  HIPDeviceFunctionStorage(
+      std::shared_ptr<const detail::DeviceModuleStorage> ModuleStorage,
+      hipFunction_t Function) noexcept
+      : DeviceFunctionStorage(std::move(ModuleStorage)), Function(Function) {}
+
+private:
+  [[maybe_unused]] hipFunction_t Function;
+};
+
+class [[nodiscard]] HIPDeviceModuleStorage final
+    : public detail::DeviceModuleStorage {
+public:
+  ~HIPDeviceModuleStorage() noexcept override {
+    consumeErrorWithDebugLogging(unloadModule());
+  }
+
+  static llvm::Expected<std::shared_ptr<detail::DeviceModuleStorage>>
+  load(std::shared_ptr<HIPDeviceState> Device, llvm::StringRef ImagePath) {
+    auto GuardOrErr = CurrentDeviceGuard::create(Device->getID());
+    if (!GuardOrErr)
+      return GuardOrErr.takeError();
+
+    std::string ImagePathStorage = ImagePath.str();
+
+    hipModule_t Module = nullptr;
+    if (auto Err = check(hipModuleLoad(&Module, ImagePathStorage.c_str()),
+                         "error in hipModuleLoad for device image '%s' on "
+                         "device %d",
+                         ImagePathStorage.c_str(), Device->getID()))
+      return Err;
+
+    return std::shared_ptr<detail::DeviceModuleStorage>(
+        new HIPDeviceModuleStorage(std::move(Device), Module));
+  }
+
+  llvm::Expected<int> getFunctionCount() const override {
+    auto GuardOrErr = CurrentDeviceGuard::create(Device->getID());
+    if (!GuardOrErr)
+      return GuardOrErr.takeError();
+
+    unsigned int Count = 0;
+    if (auto Err = check(hipModuleGetFunctionCount(&Count, Module),
+                         "error in hipModuleGetFunctionCount for device %d",
+                         Device->getID()))
+      return Err;
+
+    if (Count > static_cast<unsigned int>(std::numeric_limits<int>::max()))
+      return llvm::createStringError(
+          "HIP module function count %u exceeds int range", Count);
+
+    return static_cast<int>(Count);
+  }
+
+  llvm::Expected<std::shared_ptr<detail::DeviceFunctionStorage>>
+  getFunctionStorage(
+      std::shared_ptr<const detail::DeviceModuleStorage> ModuleStorage,
+      llvm::StringRef FunctionName) const override {
+    auto GuardOrErr = CurrentDeviceGuard::create(Device->getID());
+    if (!GuardOrErr)
+      return GuardOrErr.takeError();
+
+    std::string FunctionNameStorage = FunctionName.str();
+
+    hipFunction_t Function = nullptr;
+    if (auto Err = check(hipModuleGetFunction(&Function, Module,
+                                              FunctionNameStorage.c_str()),
+                         "error in hipModuleGetFunction for function '%s' on "
+                         "device %d",
+                         FunctionNameStorage.c_str(), Device->getID()))
+      return Err;
+
+    return std::shared_ptr<detail::DeviceFunctionStorage>(
+        new HIPDeviceFunctionStorage(std::move(ModuleStorage), Function));
+  }
+
+private:
+  HIPDeviceModuleStorage(std::shared_ptr<HIPDeviceState> Device,
+                         hipModule_t Module) noexcept
+      : Device(std::move(Device)), Module(Module) {}
+
+  llvm::Error unloadModule() {
+    if (!Module)
+      return llvm::Error::success();
+
+    auto GuardOrErr = CurrentDeviceGuard::create(Device->getID());
+    if (!GuardOrErr)
+      return GuardOrErr.takeError();
+
+    if (auto Err =
+            check(hipModuleUnload(Module),
+                  "error in hipModuleUnload for device %d", Device->getID()))
+      return Err;
+
+    Module = nullptr;
+    return llvm::Error::success();
+  }
+
+  std::shared_ptr<HIPDeviceState> Device;
+  hipModule_t Module;
+};
+
+//===----------------------------------------------------------------------===//
 // HIP device context
 //===----------------------------------------------------------------------===//
 
@@ -358,6 +470,11 @@ public:
     return Device->getArchitecture();
   }
 
+  [[nodiscard]] std::shared_ptr<const detail::DeviceIdentity>
+  getDeviceIdentity() const noexcept override {
+    return Device->getIdentity();
+  }
+
   llvm::Expected<std::pair<size_t, size_t>> getMemoryInfo() const override {
     auto GuardOrErr = CurrentDeviceGuard::create(Device->getID());
     if (!GuardOrErr)
@@ -381,6 +498,11 @@ public:
   llvm::Expected<std::shared_ptr<detail::DeviceBufferStorage>>
   enqueueCreateBufferStorage(size_t SizeInBytes) override {
     return HIPDeviceBufferStorage::create(Device, Stream, SizeInBytes);
+  }
+
+  llvm::Expected<std::shared_ptr<detail::DeviceModuleStorage>>
+  loadModuleStorage(llvm::StringRef ImagePath) override {
+    return HIPDeviceModuleStorage::load(Device, ImagePath);
   }
 
   llvm::Error enqueueCopyToDeviceStorage(

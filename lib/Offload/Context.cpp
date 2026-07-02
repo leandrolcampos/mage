@@ -15,6 +15,8 @@
 
 #include "Backend.hpp"
 
+#include "mage/Offload/Module.hpp"
+
 #include "llvm/Support/Error.h"
 #include "llvm/Support/ErrorHandling.h"
 
@@ -146,6 +148,17 @@ llvm::Error DeviceContext::enqueueCopyToHostStorage(
   assert(Impl && "cannot use a moved-from DeviceContext");
   return Impl->enqueueCopyToHostStorage(std::move(Dst), std::move(Src),
                                         SizeInBytes);
+}
+
+llvm::Expected<DeviceModule>
+DeviceContext::loadModule(llvm::StringRef ImagePath) {
+  assert(Impl && "cannot use a moved-from DeviceContext");
+
+  auto StorageOrErr = Impl->loadModuleStorage(ImagePath);
+  if (!StorageOrErr)
+    return StorageOrErr.takeError();
+
+  return DeviceModule(std::move(*StorageOrErr), Impl->getDeviceIdentity());
 }
 
 llvm::Error DeviceContext::synchronize() {

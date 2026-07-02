@@ -20,6 +20,7 @@
 #error "this header is only available for host targets"
 #endif
 
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Error.h"
 
 #include <memory>
@@ -31,6 +32,7 @@ namespace mage {
 
 template <typename T> class [[nodiscard]] HostBuffer;
 template <typename T> class [[nodiscard]] DeviceBuffer;
+class [[nodiscard]] DeviceModule;
 
 enum class DeviceAPI {
   CUDA,
@@ -49,6 +51,7 @@ class DeviceContextIdentity;
 class DeviceContextImpl;
 class HostBufferStorage;
 class DeviceBufferStorage;
+class DeviceModuleStorage;
 } // namespace detail
 
 /// Represents a single stream of execution on a particular GPU.
@@ -63,19 +66,20 @@ public:
 
   static llvm::Expected<DeviceContext> create(DeviceAPI API, int DeviceID = 0);
 
-  /// Returns the name of the API used to handle the underlying device.
+  /// Returns the API used to handle the device associated with this context.
   [[nodiscard]] DeviceAPI getAPI() const noexcept;
 
-  /// Returns the ID associated with the underlying device.
+  /// Returns the ID of the device associated with this context.
   [[nodiscard]] int getID() const noexcept;
 
-  /// Returns an identifier string for the underlying device.
+  /// Returns the name of the device associated with this context.
   [[nodiscard]] std::string getName() const;
 
-  /// Returns the architecture name for the underlying device.
+  /// Returns the architecture of the device associated with this context.
   [[nodiscard]] std::string getArchitecture() const;
 
-  /// Returns the free and total memory size for the underlying device.
+  /// Returns the free and total memory size of the device associated with this
+  /// context.
   llvm::Expected<std::pair<size_t, size_t>> getMemoryInfo() const;
 
   /// Creates a host buffer synchronously containing \p ElementCount values.
@@ -119,6 +123,11 @@ public:
   /// and released during synchronization after the copy completes.
   template <typename T>
   llvm::Error enqueueCopy(HostBuffer<T> &Dst, const DeviceBuffer<T> &Src);
+
+  /// Loads a device image onto the device associated with this context.
+  ///
+  /// The returned module remains bound to that device.
+  llvm::Expected<DeviceModule> loadModule(llvm::StringRef ImagePath);
 
   /// Blocks until all asynchronous calls on the underlying stream have
   /// completed.

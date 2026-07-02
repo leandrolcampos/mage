@@ -29,6 +29,10 @@
 namespace mage {
 namespace detail {
 
+class DeviceModuleStorage;
+
+class DeviceIdentity final {};
+
 class [[nodiscard]] DeviceState {
 public:
   virtual ~DeviceState() noexcept;
@@ -42,6 +46,8 @@ public:
   [[nodiscard]] int getID() const noexcept;
   [[nodiscard]] llvm::StringRef getName() const noexcept;
   [[nodiscard]] llvm::StringRef getArchitecture() const noexcept;
+  [[nodiscard]] std::shared_ptr<const DeviceIdentity>
+  getIdentity() const noexcept;
 
 protected:
   DeviceState(DeviceAPI API, int DeviceID, std::string Name,
@@ -52,6 +58,7 @@ private:
   int DeviceID;
   std::string Name;
   std::string Architecture;
+  std::shared_ptr<const DeviceIdentity> Identity;
 };
 
 class [[nodiscard]] StreamState {
@@ -89,6 +96,8 @@ public:
 
   [[nodiscard]] std::shared_ptr<const DeviceContextIdentity>
   getIdentity() const noexcept;
+  [[nodiscard]] virtual std::shared_ptr<const DeviceIdentity>
+  getDeviceIdentity() const noexcept = 0;
 
   virtual llvm::Expected<std::shared_ptr<HostBufferStorage>>
   createHostBufferStorage(size_t SizeInBytes) = 0;
@@ -102,6 +111,8 @@ public:
       std::shared_ptr<detail::HostBufferStorage> Dst,
       std::shared_ptr<const detail::DeviceBufferStorage> Src,
       size_t SizeInBytes) = 0;
+  virtual llvm::Expected<std::shared_ptr<detail::DeviceModuleStorage>>
+  loadModuleStorage(llvm::StringRef ImagePath) = 0;
 
   virtual llvm::Error synchronize() = 0;
   virtual llvm::Expected<bool> hasPendingWork() const = 0;

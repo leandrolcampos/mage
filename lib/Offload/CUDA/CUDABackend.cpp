@@ -16,6 +16,7 @@
 #include "Backend.hpp"
 
 #include "mage/Offload/Memory.hpp"
+#include "mage/Offload/Module.hpp"
 #include "mage/Support/Error.hpp"
 
 #include "llvm/ADT/StringRef.h"
@@ -28,6 +29,7 @@
 #include <cuda.h>
 
 #include <assert.h>
+#include <limits>
 #include <memory>
 #include <mutex>
 #include <stddef.h>
@@ -257,10 +259,9 @@ private:
 class [[nodiscard]] CUDAStreamState final : public detail::StreamState {
 public:
   ~CUDAStreamState() noexcept override {
-    if (!Stream)
-      return;
+    if (Stream)
+      consumeErrorWithDebugLogging(synchronize());
 
-    consumeErrorWithDebugLogging(synchronize());
     consumeErrorWithDebugLogging(destroyStream());
   }
 
@@ -315,12 +316,15 @@ private:
       : Device(std::move(Device)), Stream(Stream) {}
 
   llvm::Error destroyStream() {
+    if (!Stream)
+      return llvm::Error::success();
+
     auto GuardOrErr = CurrentContextGuard::create(Device->getContext());
     if (!GuardOrErr)
       return GuardOrErr.takeError();
 
     if (auto Err =
-            check(cuStreamDestroy(get()),
+            check(cuStreamDestroy(Stream),
                   "error in cuStreamDestroy for device %d", Device->getID()))
       return Err;
 
@@ -427,6 +431,114 @@ private:
 };
 
 //===----------------------------------------------------------------------===//
+// CUDA module storage
+//===----------------------------------------------------------------------===//
+
+class [[nodiscard]] CUDADeviceFunctionStorage final
+    : public detail::DeviceFunctionStorage {
+public:
+  CUDADeviceFunctionStorage(
+      std::shared_ptr<const detail::DeviceModuleStorage> ModuleStorage,
+      CUfunction Function) noexcept
+      : DeviceFunctionStorage(std::move(ModuleStorage)), Function(Function) {}
+
+private:
+  [[maybe_unused]] CUfunction Function;
+};
+
+class [[nodiscard]] CUDADeviceModuleStorage final
+    : public detail::DeviceModuleStorage {
+public:
+  ~CUDADeviceModuleStorage() noexcept override {
+    consumeErrorWithDebugLogging(unloadModule());
+  }
+
+  static llvm::Expected<std::shared_ptr<detail::DeviceModuleStorage>>
+  load(std::shared_ptr<CUDADeviceState> Device, llvm::StringRef ImagePath) {
+    auto GuardOrErr = CurrentContextGuard::create(Device->getContext());
+    if (!GuardOrErr)
+      return GuardOrErr.takeError();
+
+    std::string ImagePathStorage = ImagePath.str();
+
+    CUmodule Module = nullptr;
+    if (auto Err = check(cuModuleLoad(&Module, ImagePathStorage.c_str()),
+                         "error in cuModuleLoad for device image '%s' on "
+                         "device %d",
+                         ImagePathStorage.c_str(), Device->getID()))
+      return Err;
+
+    return std::shared_ptr<detail::DeviceModuleStorage>(
+        new CUDADeviceModuleStorage(std::move(Device), Module));
+  }
+
+  llvm::Expected<int> getFunctionCount() const override {
+    auto GuardOrErr = CurrentContextGuard::create(Device->getContext());
+    if (!GuardOrErr)
+      return GuardOrErr.takeError();
+
+    unsigned int Count = 0;
+    if (auto Err = check(cuModuleGetFunctionCount(&Count, Module),
+                         "error in cuModuleGetFunctionCount for device %d",
+                         Device->getID()))
+      return Err;
+
+    if (Count > static_cast<unsigned int>(std::numeric_limits<int>::max()))
+      return llvm::createStringError(
+          "CUDA module function count %u exceeds int range", Count);
+
+    return static_cast<int>(Count);
+  }
+
+  llvm::Expected<std::shared_ptr<detail::DeviceFunctionStorage>>
+  getFunctionStorage(
+      std::shared_ptr<const detail::DeviceModuleStorage> ModuleStorage,
+      llvm::StringRef FunctionName) const override {
+    auto GuardOrErr = CurrentContextGuard::create(Device->getContext());
+    if (!GuardOrErr)
+      return GuardOrErr.takeError();
+
+    std::string FunctionNameStorage = FunctionName.str();
+
+    CUfunction Function = nullptr;
+    if (auto Err = check(
+            cuModuleGetFunction(&Function, Module, FunctionNameStorage.c_str()),
+            "error in cuModuleGetFunction for function '%s' on "
+            "device %d",
+            FunctionNameStorage.c_str(), Device->getID()))
+      return Err;
+
+    return std::shared_ptr<detail::DeviceFunctionStorage>(
+        new CUDADeviceFunctionStorage(std::move(ModuleStorage), Function));
+  }
+
+private:
+  CUDADeviceModuleStorage(std::shared_ptr<CUDADeviceState> Device,
+                          CUmodule Module) noexcept
+      : Device(std::move(Device)), Module(Module) {}
+
+  llvm::Error unloadModule() {
+    if (!Module)
+      return llvm::Error::success();
+
+    auto GuardOrErr = CurrentContextGuard::create(Device->getContext());
+    if (!GuardOrErr)
+      return GuardOrErr.takeError();
+
+    if (auto Err =
+            check(cuModuleUnload(Module),
+                  "error in cuModuleUnload for device %d", Device->getID()))
+      return Err;
+
+    Module = nullptr;
+    return llvm::Error::success();
+  }
+
+  std::shared_ptr<CUDADeviceState> Device;
+  CUmodule Module;
+};
+
+//===----------------------------------------------------------------------===//
 // CUDA device context
 //===----------------------------------------------------------------------===//
 
@@ -461,6 +573,11 @@ public:
     return Device->getArchitecture();
   }
 
+  [[nodiscard]] std::shared_ptr<const detail::DeviceIdentity>
+  getDeviceIdentity() const noexcept override {
+    return Device->getIdentity();
+  }
+
   llvm::Expected<std::pair<size_t, size_t>> getMemoryInfo() const override {
     auto GuardOrErr = CurrentContextGuard::create(Device->getContext());
     if (!GuardOrErr)
@@ -484,6 +601,11 @@ public:
   llvm::Expected<std::shared_ptr<detail::DeviceBufferStorage>>
   enqueueCreateBufferStorage(size_t SizeInBytes) override {
     return CUDADeviceBufferStorage::create(Device, Stream, SizeInBytes);
+  }
+
+  llvm::Expected<std::shared_ptr<detail::DeviceModuleStorage>>
+  loadModuleStorage(llvm::StringRef ImagePath) override {
+    return CUDADeviceModuleStorage::load(Device, ImagePath);
   }
 
   llvm::Error enqueueCopyToDeviceStorage(
