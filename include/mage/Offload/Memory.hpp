@@ -120,14 +120,6 @@ public:
   [[nodiscard]] size_t size() const noexcept { return ElementCount; }
   [[nodiscard]] bool empty() const noexcept { return ElementCount == 0; }
 
-  operator llvm::ArrayRef<T>() const noexcept {
-    return llvm::ArrayRef<T>(data(), size());
-  }
-
-  operator llvm::MutableArrayRef<T>() noexcept {
-    return llvm::MutableArrayRef<T>(data(), size());
-  }
-
   /// Returns the element at \p Index.
   ///
   /// \p Index must be less than size().
@@ -142,6 +134,14 @@ public:
   [[nodiscard]] const T &operator[](size_t Index) const noexcept {
     assert(Index < size() && "Index must not exceed HostBuffer size");
     return data()[Index];
+  }
+
+  operator llvm::ArrayRef<T>() const noexcept {
+    return llvm::ArrayRef<T>(data(), size());
+  }
+
+  operator llvm::MutableArrayRef<T>() noexcept {
+    return llvm::MutableArrayRef<T>(data(), size());
   }
 
 private:

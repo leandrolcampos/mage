@@ -25,6 +25,7 @@ detail::HostBufferStorage::~HostBufferStorage() noexcept = default;
 DeviceAPI detail::HostBufferStorage::getAPI() const noexcept { return API; }
 
 void *detail::HostBufferStorage::data() noexcept { return Data; }
+
 const void *detail::HostBufferStorage::data() const noexcept { return Data; }
 
 size_t detail::HostBufferStorage::sizeInBytes() const noexcept {
@@ -39,13 +40,14 @@ detail::HostBufferStorage::HostBufferStorage(DeviceAPI API, void *Data,
 
 detail::DeviceBufferStorage::~DeviceBufferStorage() noexcept = default;
 
-void *detail::DeviceBufferStorage::data() noexcept { return Data; }
-const void *detail::DeviceBufferStorage::data() const noexcept { return Data; }
-
 std::shared_ptr<const detail::DeviceIdentity>
 detail::DeviceBufferStorage::getDeviceIdentity() const noexcept {
   return OwnerIdentity;
 }
+
+void *detail::DeviceBufferStorage::data() noexcept { return Data; }
+
+const void *detail::DeviceBufferStorage::data() const noexcept { return Data; }
 
 size_t detail::DeviceBufferStorage::sizeInBytes() const noexcept {
   return SizeInBytes;
