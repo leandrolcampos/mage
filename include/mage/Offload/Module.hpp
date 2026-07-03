@@ -103,9 +103,6 @@ public:
 private:
   friend class DeviceContext;
 
-  llvm::Expected<std::shared_ptr<detail::DeviceFunctionStorage>>
-  getFunctionStorage(llvm::StringRef FunctionName) const;
-
   DeviceModule(
       std::shared_ptr<detail::DeviceModuleStorage> Storage,
       std::shared_ptr<const detail::DeviceIdentity> OwnerIdentity) noexcept
@@ -114,6 +111,9 @@ private:
     assert(this->OwnerIdentity &&
            "DeviceModule requires an owner device identity");
   }
+
+  llvm::Expected<std::shared_ptr<detail::DeviceFunctionStorage>>
+  getFunctionStorage(llvm::StringRef FunctionName) const;
 
   std::shared_ptr<detail::DeviceModuleStorage> Storage;
   std::shared_ptr<const detail::DeviceIdentity> OwnerIdentity;
