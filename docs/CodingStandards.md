@@ -486,6 +486,37 @@ public:
 };
 ```
 
+#### Organize Class Members by Interface and Invariant
+
+The physical order of members in a class should make the public interface easy to read and the object's invariants easy to audit. Prefer organizing members by visibility first, then by their role within that visibility level.
+
+For non-aggregate classes, the usual order is:
+
+1. `public` interface.
+2. `protected` interface and extension points, if the class is designed for inheritance.
+3. `private` implementation details.
+
+Declarations that establish class-wide constraints, such as `static_assert`s
+on template parameters, may appear before the first access specifier when they
+help explain which instantiations are valid.
+
+Within each access section, group declarations in the order a reader needs to
+understand and use the type:
+
+1. type aliases and nested types that are part of that section's interface;
+2. constructors, destructor, and copy/move operations;
+3. factories and other `static` member functions that create or query the type as a whole;
+4. observers, predicates, accessors, indexing operations, and conversions;
+5. mutating operations and operations that return related values;
+6. comparison, arithmetic, iterator, or other operators, placed next to the conceptual operation they implement when possible;
+7. helper constants, helper functions, and instance data used only by the implementation.
+
+Do not create a separate access section for every category. A small, stable class is usually clearer with one `public` block and one `private` block than with many alternating access specifiers. Reopen an access section only when it substantially improves locality for a larger type.
+
+Public nested types and aliases should appear before public functions that use them in their signatures. Private nested types, aliases, constants, and helper functions should live in the `private` section unless exposing them is part of the intended API. Prefer placing non-static instance data at the end of the `private` section so the interface and implementation logic are read before the storage layout. Remember that data members are initialized in declaration order, so their order must also match the order expected by constructors and invariants.
+
+For STL-like value types, it is acceptable and often preferable to follow the standard library convention locally: publish `value_type`, `size_type`, iterator types, constructors, element access, size queries, and `begin()` / `end()` together in the public interface. Implementation helpers and storage should remain private.
+
 #### Do Not Use Braced Initializer Lists to Call a Constructor
 
 Starting from C++11, there is a generalized initialization syntax that allows calling constructors using braced initializer lists. Do not use braced initializer lists to call constructors with non-trivial logic or if you care that you are calling some particular constructor. Those should look like function calls using parentheses rather than like aggregate initialization.
