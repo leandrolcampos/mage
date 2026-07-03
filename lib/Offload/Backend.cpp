@@ -64,6 +64,8 @@ detail::StreamState::~StreamState() noexcept = default;
 
 detail::DeviceContextImpl::~DeviceContextImpl() noexcept = default;
 
+detail::DeviceContextImpl::DeviceContextImpl() = default;
+
 void detail::DeviceContextImpl::retainPendingResource(
     std::shared_ptr<const void> Resource) {
   assert(Resource && "cannot retain a null pending resource");
@@ -82,8 +84,6 @@ void detail::DeviceContextImpl::releasePendingResources() noexcept {
 
   Resources.clear();
 }
-
-detail::DeviceContextImpl::DeviceContextImpl() = default;
 
 int detail::Backend::getAPIVersion() const noexcept { return APIVersion; }
 

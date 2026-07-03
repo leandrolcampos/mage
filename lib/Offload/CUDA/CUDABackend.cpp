@@ -286,15 +286,6 @@ public:
     return Stream;
   }
 
-  llvm::Error synchronize() override {
-    auto GuardOrErr = CurrentContextGuard::create(Device->getContext());
-    if (!GuardOrErr)
-      return GuardOrErr.takeError();
-
-    return check(cuStreamSynchronize(get()),
-                 "error in cuStreamSynchronize for device %d", Device->getID());
-  }
-
   llvm::Expected<bool> hasPendingWork() const override {
     auto GuardOrErr = CurrentContextGuard::create(Device->getContext());
     if (!GuardOrErr)
@@ -308,6 +299,15 @@ public:
 
     return check(Result, "error in cuStreamQuery for device %d",
                  Device->getID());
+  }
+
+  llvm::Error synchronize() override {
+    auto GuardOrErr = CurrentContextGuard::create(Device->getContext());
+    if (!GuardOrErr)
+      return GuardOrErr.takeError();
+
+    return check(cuStreamSynchronize(get()),
+                 "error in cuStreamSynchronize for device %d", Device->getID());
   }
 
 private:
@@ -571,11 +571,6 @@ public:
     return Device->getArchitecture();
   }
 
-  [[nodiscard]] std::shared_ptr<const detail::DeviceIdentity>
-  getDeviceIdentity() const noexcept override {
-    return Device->getIdentity();
-  }
-
   llvm::Expected<std::pair<size_t, size_t>> getMemoryInfo() const override {
     auto GuardOrErr = CurrentContextGuard::create(Device->getContext());
     if (!GuardOrErr)
@@ -589,6 +584,15 @@ public:
       return Err;
 
     return std::pair<size_t, size_t>(Free, Total);
+  }
+
+  llvm::Expected<bool> hasPendingWork() const override {
+    return Stream->hasPendingWork();
+  }
+
+  [[nodiscard]] std::shared_ptr<const detail::DeviceIdentity>
+  getDeviceIdentity() const noexcept override {
+    return Device->getIdentity();
   }
 
   llvm::Expected<std::shared_ptr<detail::HostBufferStorage>>
@@ -662,10 +666,6 @@ public:
 
     releasePendingResources();
     return llvm::Error::success();
-  }
-
-  llvm::Expected<bool> hasPendingWork() const override {
-    return Stream->hasPendingWork();
   }
 
 private:

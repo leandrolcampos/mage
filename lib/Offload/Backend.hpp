@@ -68,8 +68,8 @@ public:
   StreamState(StreamState &&) = delete;
   StreamState &operator=(StreamState &&) = delete;
 
-  virtual llvm::Error synchronize() = 0;
   virtual llvm::Expected<bool> hasPendingWork() const = 0;
+  virtual llvm::Error synchronize() = 0;
 
 protected:
   StreamState() noexcept = default;
@@ -91,6 +91,7 @@ public:
   [[nodiscard]] virtual llvm::StringRef getName() const = 0;
   [[nodiscard]] virtual llvm::StringRef getArchitecture() const = 0;
   virtual llvm::Expected<std::pair<size_t, size_t>> getMemoryInfo() const = 0;
+  virtual llvm::Expected<bool> hasPendingWork() const = 0;
 
   [[nodiscard]] virtual std::shared_ptr<const DeviceIdentity>
   getDeviceIdentity() const noexcept = 0;
@@ -99,6 +100,9 @@ public:
   createHostBufferStorage(size_t SizeInBytes) = 0;
   virtual llvm::Expected<std::shared_ptr<detail::DeviceBufferStorage>>
   createBufferStorage(size_t SizeInBytes) = 0;
+  virtual llvm::Expected<std::shared_ptr<detail::DeviceModuleStorage>>
+  loadModuleStorage(llvm::StringRef ImagePath) = 0;
+
   virtual llvm::Error enqueueCopyToDeviceStorage(
       std::shared_ptr<detail::DeviceBufferStorage> Dst,
       std::shared_ptr<const detail::HostBufferStorage> Src,
@@ -107,11 +111,7 @@ public:
       std::shared_ptr<detail::HostBufferStorage> Dst,
       std::shared_ptr<const detail::DeviceBufferStorage> Src,
       size_t SizeInBytes) = 0;
-  virtual llvm::Expected<std::shared_ptr<detail::DeviceModuleStorage>>
-  loadModuleStorage(llvm::StringRef ImagePath) = 0;
-
   virtual llvm::Error synchronize() = 0;
-  virtual llvm::Expected<bool> hasPendingWork() const = 0;
 
 protected:
   DeviceContextImpl();

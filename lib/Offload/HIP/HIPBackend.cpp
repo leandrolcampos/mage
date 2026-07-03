@@ -182,16 +182,6 @@ public:
     return Stream;
   }
 
-  llvm::Error synchronize() override {
-    auto GuardOrErr = CurrentDeviceGuard::create(Device->getID());
-    if (!GuardOrErr)
-      return GuardOrErr.takeError();
-
-    return check(hipStreamSynchronize(get()),
-                 "error in hipStreamSynchronize for device %d",
-                 Device->getID());
-  }
-
   llvm::Expected<bool> hasPendingWork() const override {
     auto GuardOrErr = CurrentDeviceGuard::create(Device->getID());
     if (!GuardOrErr)
@@ -204,6 +194,16 @@ public:
       return false;
 
     return check(Result, "error in hipStreamQuery for device %d",
+                 Device->getID());
+  }
+
+  llvm::Error synchronize() override {
+    auto GuardOrErr = CurrentDeviceGuard::create(Device->getID());
+    if (!GuardOrErr)
+      return GuardOrErr.takeError();
+
+    return check(hipStreamSynchronize(get()),
+                 "error in hipStreamSynchronize for device %d",
                  Device->getID());
   }
 
@@ -467,11 +467,6 @@ public:
     return Device->getArchitecture();
   }
 
-  [[nodiscard]] std::shared_ptr<const detail::DeviceIdentity>
-  getDeviceIdentity() const noexcept override {
-    return Device->getIdentity();
-  }
-
   llvm::Expected<std::pair<size_t, size_t>> getMemoryInfo() const override {
     auto GuardOrErr = CurrentDeviceGuard::create(Device->getID());
     if (!GuardOrErr)
@@ -485,6 +480,15 @@ public:
       return Err;
 
     return std::pair<size_t, size_t>(Free, Total);
+  }
+
+  llvm::Expected<bool> hasPendingWork() const override {
+    return Stream->hasPendingWork();
+  }
+
+  [[nodiscard]] std::shared_ptr<const detail::DeviceIdentity>
+  getDeviceIdentity() const noexcept override {
+    return Device->getIdentity();
   }
 
   llvm::Expected<std::shared_ptr<detail::HostBufferStorage>>
@@ -556,10 +560,6 @@ public:
 
     releasePendingResources();
     return llvm::Error::success();
-  }
-
-  llvm::Expected<bool> hasPendingWork() const override {
-    return Stream->hasPendingWork();
   }
 
 private:
