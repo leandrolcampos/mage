@@ -82,6 +82,10 @@ public:
   /// context.
   llvm::Expected<std::pair<size_t, size_t>> getMemoryInfo() const;
 
+  /// Returns true if this stream has previously enqueued work that has not
+  /// completed. Does not block.
+  llvm::Expected<bool> hasPendingWork() const;
+
   /// Creates a host buffer containing \p ElementCount values.
   ///
   /// Non-empty host buffers are bound to the API used to handle the device
@@ -97,6 +101,11 @@ public:
   /// Non-empty buffers are bound to the device associated with this context.
   template <typename T>
   llvm::Expected<DeviceBuffer<T>> createBuffer(size_t ElementCount);
+
+  /// Loads a device image onto the device associated with this context.
+  ///
+  /// The returned module remains bound to that device.
+  llvm::Expected<DeviceModule> loadModule(llvm::StringRef ImagePath);
 
   /// Enqueues a copy from \p Src to \p Dst.
   ///
@@ -128,18 +137,9 @@ public:
   template <typename T>
   llvm::Error enqueueCopy(HostBuffer<T> &Dst, const DeviceBuffer<T> &Src);
 
-  /// Loads a device image onto the device associated with this context.
-  ///
-  /// The returned module remains bound to that device.
-  llvm::Expected<DeviceModule> loadModule(llvm::StringRef ImagePath);
-
   /// Blocks until all asynchronous calls on the underlying stream have
   /// completed.
   llvm::Error synchronize();
-
-  /// Returns true if this stream has previously enqueued work that has not
-  /// completed. Does not block.
-  llvm::Expected<bool> hasPendingWork() const;
 
 private:
   explicit DeviceContext(

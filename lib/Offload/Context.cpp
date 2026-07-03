@@ -50,12 +50,6 @@ llvm::Expected<int> mage::getDeviceCount(DeviceAPI API) {
   return (*BackendOrErr).getDeviceCount();
 }
 
-DeviceContext::DeviceContext(
-    std::unique_ptr<detail::DeviceContextImpl> Impl) noexcept
-    : Impl(std::move(Impl)) {
-  assert(this->Impl && "DeviceContext requires an implementation");
-}
-
 DeviceContext::~DeviceContext() noexcept = default;
 
 DeviceContext::DeviceContext(DeviceContext &&) noexcept = default;
@@ -108,6 +102,33 @@ llvm::Expected<std::pair<size_t, size_t>> DeviceContext::getMemoryInfo() const {
   return Impl->getMemoryInfo();
 }
 
+llvm::Expected<bool> DeviceContext::hasPendingWork() const {
+  assert(Impl && "cannot use a moved-from DeviceContext");
+  return Impl->hasPendingWork();
+}
+
+llvm::Expected<DeviceModule>
+DeviceContext::loadModule(llvm::StringRef ImagePath) {
+  assert(Impl && "cannot use a moved-from DeviceContext");
+
+  auto StorageOrErr = Impl->loadModuleStorage(ImagePath);
+  if (!StorageOrErr)
+    return StorageOrErr.takeError();
+
+  return DeviceModule(std::move(*StorageOrErr), Impl->getDeviceIdentity());
+}
+
+llvm::Error DeviceContext::synchronize() {
+  assert(Impl && "cannot use a moved-from DeviceContext");
+  return Impl->synchronize();
+}
+
+DeviceContext::DeviceContext(
+    std::unique_ptr<detail::DeviceContextImpl> Impl) noexcept
+    : Impl(std::move(Impl)) {
+  assert(this->Impl && "DeviceContext requires an implementation");
+}
+
 bool DeviceContext::ownsDeviceIdentity(
     const std::shared_ptr<const detail::DeviceIdentity> &Identity)
     const noexcept {
@@ -142,25 +163,4 @@ llvm::Error DeviceContext::enqueueCopyToHostStorage(
   assert(Impl && "cannot use a moved-from DeviceContext");
   return Impl->enqueueCopyToHostStorage(std::move(Dst), std::move(Src),
                                         SizeInBytes);
-}
-
-llvm::Expected<DeviceModule>
-DeviceContext::loadModule(llvm::StringRef ImagePath) {
-  assert(Impl && "cannot use a moved-from DeviceContext");
-
-  auto StorageOrErr = Impl->loadModuleStorage(ImagePath);
-  if (!StorageOrErr)
-    return StorageOrErr.takeError();
-
-  return DeviceModule(std::move(*StorageOrErr), Impl->getDeviceIdentity());
-}
-
-llvm::Error DeviceContext::synchronize() {
-  assert(Impl && "cannot use a moved-from DeviceContext");
-  return Impl->synchronize();
-}
-
-llvm::Expected<bool> DeviceContext::hasPendingWork() const {
-  assert(Impl && "cannot use a moved-from DeviceContext");
-  return Impl->hasPendingWork();
 }
