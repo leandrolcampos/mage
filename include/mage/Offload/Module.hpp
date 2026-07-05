@@ -176,6 +176,7 @@ public:
   }
 
 private:
+  friend class DeviceContext;
   friend class DeviceModule;
 
   DeviceFunction(
