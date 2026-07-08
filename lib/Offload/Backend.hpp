@@ -16,6 +16,7 @@
 
 #include "mage/Offload/Context.hpp"
 
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Error.h"
 
@@ -76,6 +77,7 @@ protected:
 };
 
 class DeviceModuleStorage;
+class DeviceFunctionStorage;
 
 class [[nodiscard]] DeviceContextImpl {
 public:
@@ -98,19 +100,23 @@ public:
 
   virtual llvm::Expected<std::shared_ptr<HostBufferStorage>>
   createHostBufferStorage(size_t SizeInBytes) = 0;
-  virtual llvm::Expected<std::shared_ptr<detail::DeviceBufferStorage>>
+  virtual llvm::Expected<std::shared_ptr<DeviceBufferStorage>>
   createBufferStorage(size_t SizeInBytes) = 0;
-  virtual llvm::Expected<std::shared_ptr<detail::DeviceModuleStorage>>
+  virtual llvm::Expected<std::shared_ptr<DeviceModuleStorage>>
   loadModuleStorage(llvm::StringRef ImagePath) = 0;
 
-  virtual llvm::Error enqueueCopyToDeviceStorage(
-      std::shared_ptr<detail::DeviceBufferStorage> Dst,
-      std::shared_ptr<const detail::HostBufferStorage> Src,
-      size_t SizeInBytes) = 0;
-  virtual llvm::Error enqueueCopyToHostStorage(
-      std::shared_ptr<detail::HostBufferStorage> Dst,
-      std::shared_ptr<const detail::DeviceBufferStorage> Src,
-      size_t SizeInBytes) = 0;
+  virtual llvm::Error
+  enqueueCopyToDeviceStorage(std::shared_ptr<DeviceBufferStorage> Dst,
+                             std::shared_ptr<const HostBufferStorage> Src,
+                             size_t SizeInBytes) = 0;
+  virtual llvm::Error
+  enqueueCopyToHostStorage(std::shared_ptr<HostBufferStorage> Dst,
+                           std::shared_ptr<const DeviceBufferStorage> Src,
+                           size_t SizeInBytes) = 0;
+  virtual llvm::Error enqueueLaunchImpl(
+      std::shared_ptr<DeviceFunctionStorage> Function,
+      const LaunchConfig &Config, llvm::MutableArrayRef<void *> ArgPtrs,
+      llvm::ArrayRef<std::shared_ptr<const void>> PendingResources) = 0;
   virtual llvm::Error synchronize() = 0;
 
 protected:
