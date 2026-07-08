@@ -31,7 +31,7 @@ constexpr DeviceAPI DeviceAPIs[] = {DeviceAPI::CUDA, DeviceAPI::HIP};
 constexpr size_t DeviceAPICount = sizeof(DeviceAPIs) / sizeof(DeviceAPIs[0]);
 } // namespace
 
-template <typename Function> static void forEachDeviceAPI(Function &&Fn) {
+template <typename Func> static void forEachDeviceAPI(Func &&Fn) {
   for (DeviceAPI API : DeviceAPIs)
     Fn(API);
 }

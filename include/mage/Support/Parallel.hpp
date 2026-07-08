@@ -43,8 +43,7 @@ void parallelize(size_t NumWorkItems, llvm::function_ref<void(size_t)> Fn);
 /// and returns after all invocations complete.
 ///
 /// \p Fn may be invoked concurrently and in an unspecified order.
-template <typename Function>
-void parallelize(size_t NumWorkItems, Function &&Fn) {
+template <typename Func> void parallelize(size_t NumWorkItems, Func &&Fn) {
   detail::parallelize(NumWorkItems,
                       [&Fn](size_t WorkItemIndex) { Fn(WorkItemIndex); });
 }

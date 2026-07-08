@@ -31,7 +31,7 @@
 namespace mage {
 
 class DeviceContext;
-template <typename FuncType> class [[nodiscard]] DeviceFunction;
+template <typename FuncTy> class [[nodiscard]] DeviceFunction;
 
 //===----------------------------------------------------------------------===//
 // Device modules
@@ -96,8 +96,8 @@ public:
   ///
   /// The returned function keeps the loaded module resource and the resolved
   /// function handle alive, and is bound to the same device as this module.
-  template <typename FuncType>
-  llvm::Expected<DeviceFunction<FuncType>>
+  template <typename FuncTy>
+  llvm::Expected<DeviceFunction<FuncTy>>
   getFunction(llvm::StringRef FunctionName) const;
 
 private:
@@ -152,9 +152,9 @@ private:
 ///
 /// A default-constructed or moved-from function has no resolved backend
 /// function handle.
-template <typename FuncType> class [[nodiscard]] DeviceFunction {
+template <typename FuncTy> class [[nodiscard]] DeviceFunction {
 public:
-  using function_type = FuncType;
+  using function_type = FuncTy;
 
   DeviceFunction() noexcept = default;
   ~DeviceFunction() noexcept = default;
@@ -192,15 +192,15 @@ private:
   std::shared_ptr<const detail::DeviceIdentity> OwnerIdentity;
 };
 
-template <typename FuncType>
-llvm::Expected<DeviceFunction<FuncType>>
+template <typename FuncTy>
+llvm::Expected<DeviceFunction<FuncTy>>
 DeviceModule::getFunction(llvm::StringRef FunctionName) const {
   auto StorageOrErr = getFunctionStorage(FunctionName);
   if (!StorageOrErr)
     return StorageOrErr.takeError();
 
   assert(OwnerIdentity && "DeviceModule requires an owner device identity");
-  return DeviceFunction<FuncType>(std::move(*StorageOrErr), OwnerIdentity);
+  return DeviceFunction<FuncTy>(std::move(*StorageOrErr), OwnerIdentity);
 }
 
 } // namespace mage

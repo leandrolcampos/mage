@@ -30,7 +30,7 @@ namespace {
 constexpr DeviceAPI DeviceAPIs[] = {DeviceAPI::CUDA, DeviceAPI::HIP};
 } // namespace
 
-template <typename Function> static void forEachDeviceAPI(Function &&Fn) {
+template <typename Func> static void forEachDeviceAPI(Func &&Fn) {
   for (DeviceAPI API : DeviceAPIs)
     Fn(API);
 }
