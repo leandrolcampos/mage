@@ -76,6 +76,20 @@ static_assert(!is_same_v<volatile int, int>,
 static_assert(is_same_v<const volatile int, const volatile int>,
               "is_same_v detects identical cv-qualified types");
 
+static_assert(type_list_size_v<type_list<>> == 0,
+              "empty type_list has no elements");
+static_assert(type_list_size_v<type_list<int, float, double>> == 3,
+              "type_list_size_v counts elements");
+static_assert(__is_same(type_list_element_t<0, type_list<int, float, double>>,
+                        int),
+              "type_list_element_t selects the first element");
+static_assert(__is_same(type_list_element_t<1, type_list<int, float, double>>,
+                        float),
+              "type_list_element_t selects the second element");
+static_assert(__is_same(type_list_element_t<2, type_list<int, float, double>>,
+                        double),
+              "type_list_element_t selects the third element");
+
 //===----------------------------------------------------------------------===//
 // cv-qualifier transformations
 //===----------------------------------------------------------------------===//
@@ -329,6 +343,53 @@ static_assert(__is_same(make_unsigned_t<volatile int>, volatile unsigned int),
 static_assert(__is_same(make_unsigned_t<const volatile int>,
                         const volatile unsigned int),
               "make_unsigned_t preserves const volatile");
+
+//===----------------------------------------------------------------------===//
+// Function type traits
+//===----------------------------------------------------------------------===//
+
+using TestFunction = int(float, double *);
+using NoexceptTestFunction = void(const int *) noexcept;
+
+static_assert(function_traits<TestFunction>::parameter_count == 2,
+              "function_traits counts parameters of a function");
+static_assert(__is_same(function_return_type_t<TestFunction>, int),
+              "function_return_type_t exposes the return type of a function");
+static_assert(
+    __is_same(function_parameter_types_t<TestFunction>,
+              type_list<float, double *>),
+    "function_parameter_types_t exposes parameter types of a function");
+
+static_assert(function_traits<NoexceptTestFunction>::parameter_count == 1,
+              "function_traits counts parameters of a noexcept function");
+static_assert(
+    __is_same(function_return_type_t<NoexceptTestFunction>, void),
+    "function_return_type_t exposes the return type of a noexcept function");
+static_assert(__is_same(function_parameter_types_t<NoexceptTestFunction>,
+                        type_list<const int *>),
+              "function_parameter_types_t exposes parameter types of a "
+              "noexcept function");
+
+static_assert(function_traits<TestFunction *>::parameter_count == 2,
+              "function_traits counts parameters of a function pointer");
+static_assert(
+    __is_same(function_return_type_t<TestFunction *>, int),
+    "function_return_type_t exposes the return type of a function pointer");
+static_assert(
+    __is_same(function_parameter_types_t<TestFunction *>,
+              type_list<float, double *>),
+    "function_parameter_types_t exposes parameter types of a function pointer");
+
+static_assert(
+    function_traits<NoexceptTestFunction *>::parameter_count == 1,
+    "function_traits counts parameters of a pointer to noexcept function");
+static_assert(__is_same(function_return_type_t<NoexceptTestFunction *>, void),
+              "function_return_type_t exposes the return type of a pointer to "
+              "noexcept function");
+static_assert(__is_same(function_parameter_types_t<NoexceptTestFunction *>,
+                        type_list<const int *>),
+              "function_parameter_types_t exposes parameter types of a pointer "
+              "to noexcept function");
 
 //===----------------------------------------------------------------------===//
 // Numeric storage types

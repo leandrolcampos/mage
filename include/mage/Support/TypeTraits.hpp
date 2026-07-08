@@ -23,6 +23,7 @@
 
 #include "mage/Support/FloatTypes.hpp"
 
+#include <stddef.h>
 #include <stdint.h>
 
 namespace mage {
@@ -73,6 +74,44 @@ template <typename T> struct is_same<T, T> : true_type {};
 
 template <typename T, typename U>
 inline constexpr bool is_same_v = is_same<T, U>::value;
+
+template <typename... Types> struct type_list {};
+
+template <typename T> struct type_list_size;
+
+template <typename... Types>
+struct type_list_size<type_list<Types...>>
+    : detail::integral_constant<size_t, sizeof...(Types)> {};
+
+template <typename T>
+inline constexpr size_t type_list_size_v = type_list_size<T>::value;
+
+namespace detail {
+
+template <size_t I, typename... Types> struct type_list_element_impl;
+
+template <size_t I, typename Head, typename... Tail>
+struct type_list_element_impl<I, Head, Tail...>
+    : type_list_element_impl<I - 1, Tail...> {};
+
+template <typename Head, typename... Tail>
+struct type_list_element_impl<0, Head, Tail...> {
+  using type = Head;
+};
+
+} // namespace detail
+
+template <size_t I, typename T> struct type_list_element;
+
+template <size_t I, typename... Types>
+struct type_list_element<I, type_list<Types...>> {
+  static_assert(I < sizeof...(Types), "type_list_element index out of range");
+
+  using type = typename detail::type_list_element_impl<I, Types...>::type;
+};
+
+template <size_t I, typename T>
+using type_list_element_t = typename type_list_element<I, T>::type;
 
 //===----------------------------------------------------------------------===//
 // cv-qualifier transformations
@@ -293,6 +332,38 @@ public:
 };
 
 template <typename T> using make_unsigned_t = typename make_unsigned<T>::type;
+
+//===----------------------------------------------------------------------===//
+// Function type traits
+//===----------------------------------------------------------------------===//
+
+template <typename F> struct function_traits;
+
+template <typename ReturnType, typename... ParameterTypes>
+struct function_traits<ReturnType(ParameterTypes...)> {
+  static constexpr size_t parameter_count = sizeof...(ParameterTypes);
+
+  using return_type = ReturnType;
+  using parameter_types = type_list<ParameterTypes...>;
+};
+
+template <typename ReturnType, typename... ParameterTypes>
+struct function_traits<ReturnType(ParameterTypes...) noexcept>
+    : function_traits<ReturnType(ParameterTypes...)> {};
+
+template <typename ReturnType, typename... ParameterTypes>
+struct function_traits<ReturnType (*)(ParameterTypes...)>
+    : function_traits<ReturnType(ParameterTypes...)> {};
+
+template <typename ReturnType, typename... ParameterTypes>
+struct function_traits<ReturnType (*)(ParameterTypes...) noexcept>
+    : function_traits<ReturnType(ParameterTypes...) noexcept> {};
+
+template <typename F>
+using function_return_type_t = typename function_traits<F>::return_type;
+
+template <typename F>
+using function_parameter_types_t = typename function_traits<F>::parameter_types;
 
 //===----------------------------------------------------------------------===//
 // Numeric storage types

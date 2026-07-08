@@ -1,6 +1,7 @@
 add_mage_library(
   MageSupport
   SRCS
+    Error.cpp
     Parallel.cpp
   BUILD_KINDS
     HOST

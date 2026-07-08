@@ -1,0 +1,63 @@
+add_mage_unittest(
+  MemoryTest
+  SRCS
+    MemoryTest.cpp
+  BUILD_KINDS
+    HOST
+  LINK_LIBRARIES
+    MageOffload
+)
+
+add_mage_unittest(
+  ContextTest
+  SRCS
+    ContextTest.cpp
+  BUILD_KINDS
+    HOST
+  LINK_LIBRARIES
+    MageOffload
+)
+
+add_mage_device_image(
+  OffloadModuleTestDeviceImage
+  SRCS
+    DeviceCode/ModuleSymbols.cpp
+  BUILD_KINDS
+    GPU
+  OUTPUT_SUBDIR
+    unittests/mage/Offload
+)
+
+add_mage_unittest(
+  ModuleTest
+  SRCS
+    ModuleTest.cpp
+  BUILD_KINDS
+    HOST
+  LINK_LIBRARIES
+    MageOffload
+  DEVICE_IMAGES
+    OffloadModuleTestDeviceImage
+)
+
+add_mage_device_image(
+  OffloadExecutionTestDeviceImage
+  SRCS
+    DeviceCode/ExecutionKernels.cpp
+  BUILD_KINDS
+    GPU
+  OUTPUT_SUBDIR
+    unittests/mage/Offload
+)
+
+add_mage_unittest(
+  ExecutionTest
+  SRCS
+    ExecutionTest.cpp
+  BUILD_KINDS
+    HOST
+  LINK_LIBRARIES
+    MageOffload
+  DEVICE_IMAGES
+    OffloadExecutionTestDeviceImage
+)

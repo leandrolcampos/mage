@@ -32,6 +32,7 @@
 #include <limits.h>
 #include <new>
 #include <stddef.h>
+#include <type_traits>
 #include <utility>
 
 namespace mage {
@@ -115,9 +116,9 @@ public:
   [[nodiscard]] mpfr_rnd_t getMpfrRoundingMode() const noexcept;
 
 private:
-  template <size_t N, typename Function>
+  template <size_t N, typename Func>
   friend void withInlineMpfrFloats(unsigned Precision, RoundingMode Rounding,
-                                   Function &&Fn);
+                                   Func &&Fn) noexcept;
 
   MpfrFloat(unsigned Precision, mpfr_rnd_t MpfrRounding,
             void *Storage) noexcept;
@@ -129,10 +130,18 @@ private:
 
 namespace detail {
 
-template <typename Function, size_t N, size_t... Indices>
-void invokeWithMpfrFloats(Function &&Fn, MpfrFloat *const (&Values)[N],
-                          std::index_sequence<Indices...>) {
-  std::forward<Function>(Fn)(*Values[Indices]...);
+template <size_t> using MpfrFloatRef = MpfrFloat &;
+
+template <typename Func, size_t... Indices>
+[[nodiscard]] constexpr bool
+isNothrowInvocableWithMpfrFloats(std::index_sequence<Indices...>) noexcept {
+  return std::is_nothrow_invocable_v<Func, MpfrFloatRef<Indices>...>;
+}
+
+template <typename Func, size_t N, size_t... Indices>
+void invokeWithMpfrFloats(Func &&Fn, MpfrFloat *const (&Values)[N],
+                          std::index_sequence<Indices...>) noexcept {
+  std::forward<Func>(Fn)(*Values[Indices]...);
 }
 
 } // namespace detail
@@ -141,10 +150,13 @@ void invokeWithMpfrFloats(Function &&Fn, MpfrFloat *const (&Values)[N],
 ///
 /// The references and pointers derived from them must not escape the
 /// invocation.
-template <size_t N, typename Function>
+template <size_t N, typename Func>
 void withInlineMpfrFloats(unsigned Precision, RoundingMode Rounding,
-                          Function &&Fn) {
+                          Func &&Fn) noexcept {
   static_assert(N > 0, "N must be greater than zero");
+  static_assert(detail::isNothrowInvocableWithMpfrFloats<Func &&>(
+                    std::make_index_sequence<N>{}),
+                "Fn must be noexcept");
 
   if constexpr (N > 0) {
     assert((Precision >= MPFR_PREC_MIN) &&
@@ -173,12 +185,10 @@ void withInlineMpfrFloats(unsigned Precision, RoundingMode Rounding,
           MpfrFloat(Precision, MpfrRounding, ValueStorage);
     }
 
-    detail::invokeWithMpfrFloats(std::forward<Function>(Fn), Values,
+    detail::invokeWithMpfrFloats(std::forward<Func>(Fn), Values,
                                  std::make_index_sequence<N>{});
 
-    // Objects created with placement new must be destroyed explicitly. Here we
-    // assume that the callback does not throw because otherwise the values are
-    // not destroyed.
+    // Objects created with placement new must be destroyed explicitly.
     for (size_t I = N; I > 0; --I)
       Values[I - 1]->~MpfrFloat();
   }

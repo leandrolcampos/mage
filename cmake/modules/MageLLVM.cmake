@@ -92,31 +92,29 @@ function(_mage_get_llvm_cmake_dir_from_root out_var llvm_root)
     "under lib/cmake/llvm or lib64/cmake/llvm")
 endfunction()
 
-function(_mage_configure_llvm_components)
-  if((NOT DEFINED MAGE_LLVM_INCLUDE_DIRS) OR
-     (MAGE_LLVM_INCLUDE_DIRS STREQUAL ""))
+function(_mage_configure_llvm_components llvm_include_dirs llvm_definitions)
+  if(llvm_include_dirs STREQUAL "")
     message(FATAL_ERROR
       "_mage_configure_llvm_components() requires "
-      "MAGE_LLVM_INCLUDE_DIRS to be set")
+      "LLVM include directories to be set")
   endif()
 
-  if((NOT DEFINED MAGE_LLVM_DEFINITIONS) OR
-     (MAGE_LLVM_DEFINITIONS STREQUAL ""))
+  if(llvm_definitions STREQUAL "")
     message(FATAL_ERROR
       "_mage_configure_llvm_components() requires "
-      "MAGE_LLVM_DEFINITIONS to be set")
+      "LLVM compile definitions to be set")
   endif()
 
   add_library(MageLLVMCommon INTERFACE)
 
   target_include_directories(MageLLVMCommon SYSTEM INTERFACE
-    ${MAGE_LLVM_INCLUDE_DIRS})
+    ${llvm_include_dirs})
 
   separate_arguments(
-    llvm_definitions NATIVE_COMMAND "${MAGE_LLVM_DEFINITIONS}")
+    llvm_compile_definitions NATIVE_COMMAND "${llvm_definitions}")
 
   target_compile_options(MageLLVMCommon INTERFACE
-    ${llvm_definitions})
+    ${llvm_compile_definitions})
 
   add_library(MageLLVMSupport INTERFACE)
   add_library(Mage::LLVMSupport ALIAS MageLLVMSupport)
@@ -137,24 +135,17 @@ function(mage_configure_llvm_toolchain)
   set(LLVM_DIR "${llvm_cmake_dir}")
   find_package(LLVM REQUIRED CONFIG NO_DEFAULT_PATH)
 
-  set(MAGE_LLVM_CMAKE_DIR "${llvm_cmake_dir}" CACHE INTERNAL
-    "LLVM CMake package directory used by Mage" FORCE)
-
-  set(MAGE_LLVM_VERSION "${LLVM_PACKAGE_VERSION}" CACHE INTERNAL
-    "LLVM version reported by LLVMConfig.cmake" FORCE)
-  set(MAGE_LLVM_INCLUDE_DIRS "${LLVM_INCLUDE_DIRS}" CACHE INTERNAL
-    "LLVM include directories reported by LLVMConfig.cmake" FORCE)
-  set(MAGE_LLVM_DEFINITIONS "${LLVM_DEFINITIONS}" CACHE INTERNAL
-    "LLVM compile definitions reported by LLVMConfig.cmake" FORCE)
   set(MAGE_LLVM_LIBRARY_DIR "${LLVM_LIBRARY_DIR}" CACHE INTERNAL
     "LLVM library directory reported by LLVMConfig.cmake" FORCE)
   set(MAGE_LLVM_TOOLS_DIR "${LLVM_TOOLS_BINARY_DIR}" CACHE INTERNAL
     "LLVM tools directory reported by LLVMConfig.cmake" FORCE)
 
   message(STATUS
-    "Found LLVM: ${llvm_root} (found version \"${MAGE_LLVM_VERSION}\")")
+    "Found LLVM: ${llvm_root} (found version \"${LLVM_PACKAGE_VERSION}\")")
 
-  _mage_configure_llvm_components()
+  _mage_configure_llvm_components(
+    "${LLVM_INCLUDE_DIRS}"
+    "${LLVM_DEFINITIONS}")
 endfunction()
 
 # Configures the LLVM libc target used by Mage targets in the current build.

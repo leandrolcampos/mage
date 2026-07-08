@@ -12,5 +12,6 @@ add_dependencies(mage mage-bitcode-libraries)
 add_custom_target(mage-device-images)
 add_dependencies(mage mage-device-images)
 
+add_subdirectory(Offload)
 add_subdirectory(Support)
 add_subdirectory(Testing)

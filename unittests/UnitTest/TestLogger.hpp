@@ -45,9 +45,9 @@ struct TestLogger {
 
   template <typename Enum, enable_if_t<is_enum_v<Enum>, int> = 0>
   TestLogger &operator<<(Enum Value) {
-    using Underlying = underlying_type_t<Enum>;
+    using UnderlyingTy = underlying_type_t<Enum>;
 
-    if constexpr (is_signed_v<Underlying>)
+    if constexpr (is_signed_v<UnderlyingTy>)
       return *this << static_cast<long long>(Value);
     else
       return *this << static_cast<unsigned long long>(Value);

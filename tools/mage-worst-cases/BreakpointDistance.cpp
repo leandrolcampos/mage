@@ -104,7 +104,7 @@ static void computeUlpDistance(mpfr::MpfrFloat &Distance,
                                const mpfr::MpfrFloat &FunctionValue) {
   mpfr::withInlineMpfrFloats<2>(
       Distance.getPrecision(), RoundingMode::NearestTiesToEven,
-      [&](mpfr::MpfrFloat &Difference, mpfr::MpfrFloat &Ulp) {
+      [&](mpfr::MpfrFloat &Difference, mpfr::MpfrFloat &Ulp) noexcept {
         mpfr_sub(*Difference, *FunctionValue, *Breakpoint, MPFR_RNDA);
         mpfr_abs(*Difference, *Difference, MPFR_RNDA);
         computeUlp(Ulp, FunctionValue);
@@ -117,7 +117,8 @@ static void computeDirectedDistance(mpfr::MpfrFloat &Distance,
   mpfr::withInlineMpfrFloats<4>(
       Distance.getPrecision(), RoundingMode::NearestTiesToEven,
       [&](mpfr::MpfrFloat &Lower, mpfr::MpfrFloat &Upper,
-          mpfr::MpfrFloat &LowerDifference, mpfr::MpfrFloat &UpperDifference) {
+          mpfr::MpfrFloat &LowerDifference,
+          mpfr::MpfrFloat &UpperDifference) noexcept {
         computeNearestFloats(Lower, Upper, FunctionValue,
                              RoundingGroupTy::Directed);
 
@@ -138,7 +139,7 @@ static void computeNearestDistance(mpfr::MpfrFloat &Distance,
   mpfr::withInlineMpfrFloats<3>(
       Distance.getPrecision(), RoundingMode::NearestTiesToEven,
       [&](mpfr::MpfrFloat &Lower, mpfr::MpfrFloat &Upper,
-          mpfr::MpfrFloat &Breakpoint) {
+          mpfr::MpfrFloat &Breakpoint) noexcept {
         computeNearestFloats(Lower, Upper, FunctionValue,
                              RoundingGroupTy::Nearest);
 
