@@ -15,6 +15,7 @@
 
 #include "Backend.hpp"
 
+#include "mage/Offload/Execution.hpp"
 #include "mage/Offload/Memory.hpp"
 #include "mage/Offload/Module.hpp"
 #include "mage/Support/Error.hpp"
@@ -44,9 +45,9 @@ using namespace mage;
 // CUDA error handling
 //===----------------------------------------------------------------------===//
 
-template <typename... ArgsTy>
+template <typename... ArgTys>
 static llvm::Error check(CUresult Result, const char *ErrCtxFmt,
-                         ArgsTy... Args) {
+                         ArgTys... Args) {
   if (Result == CUDA_SUCCESS)
     return llvm::Error::success();
 
@@ -440,8 +441,10 @@ public:
       CUfunction Function) noexcept
       : DeviceFunctionStorage(std::move(ModuleStorage)), Function(Function) {}
 
+  [[nodiscard]] CUfunction get() const noexcept { return Function; }
+
 private:
-  [[maybe_unused]] CUfunction Function;
+  CUfunction Function;
 };
 
 class [[nodiscard]] CUDADeviceModuleStorage final
@@ -657,6 +660,36 @@ public:
 
     retainPendingResource(std::move(Dst));
     retainPendingResource(std::move(Src));
+    return llvm::Error::success();
+  }
+
+  llvm::Error enqueueLaunchImpl(
+      std::shared_ptr<detail::DeviceFunctionStorage> Function,
+      const LaunchConfig &Config, llvm::MutableArrayRef<void *> ArgPtrs,
+      llvm::ArrayRef<std::shared_ptr<const void>> PendingResources) override {
+    assert(Function && "launch function storage must not be null");
+
+    auto GuardOrErr = CurrentContextGuard::create(Device->getContext());
+    if (!GuardOrErr)
+      return GuardOrErr.takeError();
+
+    CUfunction CUDAFunction =
+        static_cast<CUDADeviceFunctionStorage *>(Function.get())->get();
+    void **KernelParams = ArgPtrs.empty() ? nullptr : ArgPtrs.data();
+
+    if (auto Err = check(
+            cuLaunchKernel(
+                CUDAFunction, Config.GridDim.X, Config.GridDim.Y,
+                Config.GridDim.Z, Config.BlockDim.X, Config.BlockDim.Y,
+                Config.BlockDim.Z,
+                static_cast<unsigned int>(Config.DynamicSharedMemoryBytes),
+                Stream->get(), KernelParams, nullptr),
+            "error in cuLaunchKernel on device %d", Device->getID()))
+      return Err;
+
+    retainPendingResource(std::move(Function));
+    for (const auto &Resource : PendingResources)
+      retainPendingResource(Resource);
     return llvm::Error::success();
   }
 

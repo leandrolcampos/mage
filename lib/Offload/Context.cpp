@@ -15,12 +15,14 @@
 
 #include "Backend.hpp"
 
+#include "mage/Offload/Execution.hpp"
 #include "mage/Offload/Module.hpp"
 
 #include "llvm/Support/Error.h"
 #include "llvm/Support/ErrorHandling.h"
 
 #include <assert.h>
+#include <limits>
 #include <memory>
 #include <stddef.h>
 #include <string>
@@ -163,4 +165,46 @@ llvm::Error DeviceContext::enqueueCopyToHostStorage(
   assert(Impl && "cannot use a moved-from DeviceContext");
   return Impl->enqueueCopyToHostStorage(std::move(Dst), std::move(Src),
                                         SizeInBytes);
+}
+
+static llvm::Error validateLaunchDim(Dim3 Dim, const char *Name) {
+  if (Dim.X == 0 || Dim.Y == 0 || Dim.Z == 0)
+    return llvm::createStringError(
+        "cannot enqueue a launch with %s dimensions (%u, %u, %u): all "
+        "dimensions must be non-zero",
+        Name, static_cast<unsigned int>(Dim.X),
+        static_cast<unsigned int>(Dim.Y), static_cast<unsigned int>(Dim.Z));
+
+  return llvm::Error::success();
+}
+
+static llvm::Error validateLaunchConfig(const LaunchConfig &Config) {
+  if (auto Err = validateLaunchDim(Config.GridDim, "grid"))
+    return Err;
+
+  if (auto Err = validateLaunchDim(Config.BlockDim, "block"))
+    return Err;
+
+  constexpr auto MaxDynamicSharedMemoryBytes =
+      static_cast<size_t>(std::numeric_limits<unsigned int>::max());
+  if (Config.DynamicSharedMemoryBytes > MaxDynamicSharedMemoryBytes)
+    return llvm::createStringError(
+        "cannot enqueue a launch with %zu bytes of dynamic shared memory; "
+        "maximum representable size is %zu bytes",
+        Config.DynamicSharedMemoryBytes, MaxDynamicSharedMemoryBytes);
+
+  return llvm::Error::success();
+}
+
+llvm::Error DeviceContext::enqueueLaunchImpl(
+    std::shared_ptr<detail::DeviceFunctionStorage> Function,
+    const LaunchConfig &Config, llvm::MutableArrayRef<void *> ArgPtrs,
+    llvm::ArrayRef<std::shared_ptr<const void>> PendingResources) {
+  assert(Impl && "cannot use a moved-from DeviceContext");
+
+  if (auto Err = validateLaunchConfig(Config))
+    return Err;
+
+  return Impl->enqueueLaunchImpl(std::move(Function), Config, ArgPtrs,
+                                 PendingResources);
 }

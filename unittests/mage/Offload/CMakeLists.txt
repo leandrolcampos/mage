@@ -39,3 +39,25 @@ add_mage_unittest(
   DEVICE_IMAGES
     OffloadModuleTestDeviceImage
 )
+
+add_mage_device_image(
+  OffloadExecutionTestDeviceImage
+  SRCS
+    DeviceCode/ExecutionKernels.cpp
+  BUILD_KINDS
+    GPU
+  OUTPUT_SUBDIR
+    unittests/mage/Offload
+)
+
+add_mage_unittest(
+  ExecutionTest
+  SRCS
+    ExecutionTest.cpp
+  BUILD_KINDS
+    HOST
+  LINK_LIBRARIES
+    MageOffload
+  DEVICE_IMAGES
+    OffloadExecutionTestDeviceImage
+)

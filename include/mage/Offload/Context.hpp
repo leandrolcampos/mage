@@ -20,6 +20,7 @@
 #error "this header is only available for host targets"
 #endif
 
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Error.h"
 
@@ -33,6 +34,8 @@ namespace mage {
 template <typename T> class [[nodiscard]] HostBuffer;
 template <typename T> class [[nodiscard]] DeviceBuffer;
 class [[nodiscard]] DeviceModule;
+template <typename FuncTy> class [[nodiscard]] DeviceFunction;
+struct LaunchConfig;
 
 enum class DeviceAPI {
   CUDA,
@@ -52,6 +55,7 @@ class DeviceContextImpl;
 class HostBufferStorage;
 class DeviceBufferStorage;
 class DeviceModuleStorage;
+class DeviceFunctionStorage;
 } // namespace detail
 
 /// Represents a single stream of execution on a particular GPU.
@@ -137,6 +141,20 @@ public:
   template <typename T>
   llvm::Error enqueueCopy(HostBuffer<T> &Dst, const DeviceBuffer<T> &Src);
 
+  /// Enqueues a launch of \p Function using \p Config.
+  ///
+  /// \p Function must be bound to the device associated with this context.
+  ///
+  /// Non-empty DeviceBuffer arguments must be bound to the device associated
+  /// with this context.
+  ///
+  /// The underlying storage for \p Function and all non-empty DeviceBuffer
+  /// arguments is retained by the context and released during synchronization
+  /// after the launch completes.
+  template <typename FuncTy, typename... ArgTys>
+  llvm::Error enqueueLaunch(const DeviceFunction<FuncTy> &Function,
+                            const LaunchConfig &Config, ArgTys &&...Args);
+
   /// Blocks until all asynchronous calls on the underlying stream have
   /// completed.
   llvm::Error synchronize();
@@ -163,6 +181,14 @@ private:
       std::shared_ptr<detail::HostBufferStorage> Dst,
       std::shared_ptr<const detail::DeviceBufferStorage> Src,
       size_t SizeInBytes);
+
+  template <size_t ArgIndex, typename ArgTy>
+  auto prepareLaunchArg(ArgTy &&Arg) const;
+
+  llvm::Error enqueueLaunchImpl(
+      std::shared_ptr<detail::DeviceFunctionStorage> Function,
+      const LaunchConfig &Config, llvm::MutableArrayRef<void *> ArgPtrs,
+      llvm::ArrayRef<std::shared_ptr<const void>> PendingResources);
 
   std::unique_ptr<detail::DeviceContextImpl> Impl;
 };
