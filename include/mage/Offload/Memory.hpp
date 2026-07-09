@@ -124,7 +124,7 @@ public:
   ///
   /// \p Index must be less than size().
   [[nodiscard]] T &operator[](size_t Index) noexcept {
-    assert(Index < size() && "Index must not exceed HostBuffer size");
+    assert(Index < size() && "Index must be less than HostBuffer size");
     return data()[Index];
   }
 
@@ -132,7 +132,7 @@ public:
   ///
   /// \p Index must be less than size().
   [[nodiscard]] const T &operator[](size_t Index) const noexcept {
-    assert(Index < size() && "Index must not exceed HostBuffer size");
+    assert(Index < size() && "Index must be less than HostBuffer size");
     return data()[Index];
   }
 
@@ -309,16 +309,17 @@ DeviceContext::createBuffer(size_t ElementCount) {
 template <typename T>
 llvm::Error DeviceContext::enqueueCopy(DeviceBuffer<T> &Dst,
                                        const HostBuffer<T> &Src) {
-  static_assert(is_trivially_copyable_v<T>,
-                "buffer elements must be trivially copyable");
+  static_assert(
+      is_trivially_copyable_v<T>,
+      "enqueueCopy requires buffer elements to be trivially copyable");
 
   if (Dst.empty())
     return llvm::Error::success();
 
   if (Src.size() < Dst.size())
     return llvm::createStringError(
-        "host-to-device copy requires the source buffer to contain at least "
-        "%zu elements; source contains %zu",
+        "cannot enqueue a host-to-device copy: destination DeviceBuffer has "
+        "%zu elements, but source HostBuffer has only %zu",
         Dst.size(), Src.size());
 
   assert(Dst.Storage && "non-empty DeviceBuffer requires storage");
@@ -326,14 +327,14 @@ llvm::Error DeviceContext::enqueueCopy(DeviceBuffer<T> &Dst,
 
   if (Src.Storage->getAPI() != getAPI())
     return llvm::createStringError(
-        "host-to-device copy requires the source HostBuffer to have been "
-        "created for the %s API",
-        toString(getAPI()));
+        "cannot enqueue a host-to-device copy with a source HostBuffer "
+        "created for the %s API; this DeviceContext uses the %s API",
+        toString(Src.Storage->getAPI()), toString(getAPI()));
 
   if (!ownsDeviceIdentity(Dst.Storage->getDeviceIdentity()))
     return llvm::createStringError(
-        "host-to-device copy requires the destination device buffer to have "
-        "been created on this DeviceContext's device");
+        "cannot enqueue a host-to-device copy with a destination DeviceBuffer "
+        "from another device");
 
   return enqueueCopyToDeviceStorage(Dst.Storage, Src.Storage,
                                     Dst.size() * sizeof(T));
@@ -342,16 +343,17 @@ llvm::Error DeviceContext::enqueueCopy(DeviceBuffer<T> &Dst,
 template <typename T>
 llvm::Error DeviceContext::enqueueCopy(HostBuffer<T> &Dst,
                                        const DeviceBuffer<T> &Src) {
-  static_assert(is_trivially_copyable_v<T>,
-                "buffer elements must be trivially copyable");
+  static_assert(
+      is_trivially_copyable_v<T>,
+      "enqueueCopy requires buffer elements to be trivially copyable");
 
   if (Dst.empty())
     return llvm::Error::success();
 
   if (Src.size() < Dst.size())
     return llvm::createStringError(
-        "device-to-host copy requires the source buffer to contain at least "
-        "%zu elements; source contains %zu",
+        "cannot enqueue a device-to-host copy: destination HostBuffer has "
+        "%zu elements, but source DeviceBuffer has only %zu",
         Dst.size(), Src.size());
 
   assert(Dst.Storage && "non-empty HostBuffer requires storage");
@@ -359,14 +361,14 @@ llvm::Error DeviceContext::enqueueCopy(HostBuffer<T> &Dst,
 
   if (Dst.Storage->getAPI() != getAPI())
     return llvm::createStringError(
-        "device-to-host copy requires the destination HostBuffer to have been "
-        "created for the %s API",
-        toString(getAPI()));
+        "cannot enqueue a device-to-host copy with a destination HostBuffer "
+        "created for the %s API; this DeviceContext uses the %s API",
+        toString(Dst.Storage->getAPI()), toString(getAPI()));
 
   if (!ownsDeviceIdentity(Src.Storage->getDeviceIdentity()))
     return llvm::createStringError(
-        "device-to-host copy requires the source device buffer to have been "
-        "created on this DeviceContext's device");
+        "cannot enqueue a device-to-host copy with a source DeviceBuffer from "
+        "another device");
 
   return enqueueCopyToHostStorage(Dst.Storage, Src.Storage,
                                   Dst.size() * sizeof(T));
