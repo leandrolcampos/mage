@@ -29,6 +29,7 @@
 #include "llvm/Support/Path.h"
 #include "llvm/Support/WithColor.h"
 #include "llvm/Support/raw_ostream.h"
+
 #include <mpfr.h>
 
 #include <algorithm>
@@ -36,8 +37,10 @@
 #include <chrono>
 #include <limits>
 #include <memory>
+#include <stddef.h>
 #include <stdint.h>
 #include <string>
+#include <utility>
 #include <vector>
 
 using namespace mage;

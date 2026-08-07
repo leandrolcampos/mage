@@ -14,7 +14,11 @@
 #include "mage/Testing/MpfrFloat.hpp"
 #include "UnitTest/Test.hpp"
 
+#include "mage/Support/FloatTypes.hpp"
 #include "mage/Support/TypeTraits.hpp"
+
+#include <gmp.h>
+#include <mpfr.h>
 
 #include <stdint.h>
 #include <utility>

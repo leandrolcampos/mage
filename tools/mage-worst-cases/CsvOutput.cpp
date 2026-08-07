@@ -15,12 +15,17 @@
 
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/Error.h"
 #include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
 
 #include <array>
 #include <cassert>
+#include <memory>
+#include <stddef.h>
 #include <stdint.h>
+#include <sys/types.h>
 #include <system_error>
 #include <utility>
 

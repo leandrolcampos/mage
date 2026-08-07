@@ -26,6 +26,7 @@
 // MPFR exposes its intmax_t APIs only after <stdint.h> has been included.
 #include <stdint.h>
 
+#include <gmp.h>
 #include <mpfr.h>
 
 #include <assert.h>
