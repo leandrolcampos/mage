@@ -30,7 +30,7 @@ namespace worst_cases {
 [[nodiscard]] bool
 computeBreakpointDistance(mpfr::MpfrFloat &Distance,
                           const mpfr::MpfrFloat &FunctionValue,
-                          RoundingGroupTy RoundingGroup);
+                          RoundingGroupTy RoundingGroup) noexcept;
 
 } // namespace worst_cases
 } // namespace mage

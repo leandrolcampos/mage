@@ -57,7 +57,7 @@ struct SearchConfigTy {
 };
 
 [[nodiscard]] const FunctionConfigTy *
-findMathFunctionConfig(llvm::StringRef FunctionName);
+findMathFunctionConfig(llvm::StringRef FunctionName) noexcept;
 
 [[nodiscard]] bool searchWorstCases(const SearchConfigTy &SearchConfig);
 

@@ -343,6 +343,8 @@ Use LLVM-style facilities such as `isa<>`, `cast<>`, and `dyn_cast<>` where appr
 
 Specifiers such as `[[nodiscard]]`, `const`, `constexpr`, `explicit`, `inline`, `static`, and `noexcept` are part of an interface's contract. Use them to communicate and enforce important semantics, but avoid adding them mechanically when they do not change the caller's useful understanding of the API.
 
+Use a higher bar for entities confined to a `.cpp` file. Their implementation and callers are visible within one translation unit, so contract annotations often add less value. For instance, use `[[nodiscard]]` when discarding the result would still be a plausible bug, and use `noexcept` when the exception specification has a concrete semantic role, such as participating in a callback or function type. Do not annotate every file-local helper merely because its current implementation cannot throw or its current callers consume the result.
+
 Use `[[nodiscard]]` on a `class` or `struct` when discarding an instance of that type is almost always a bug or at least suspicious. This is common for error/result types, RAII guards, resource handles, and value types whose purpose is to carry computed information.
 
 ```cpp

@@ -31,25 +31,25 @@ namespace mage {
 namespace worst_cases {
 
 /// Collects concurrent CSV writes in separate temporary files.
-class CsvOutput {
+class [[nodiscard]] CsvOutput {
 public:
-  [[nodiscard]] static llvm::Expected<std::unique_ptr<CsvOutput>>
+  static llvm::Expected<std::unique_ptr<CsvOutput>>
   create(llvm::StringRef OutputPath, size_t NumTemporaryFiles);
 
-  ~CsvOutput();
+  ~CsvOutput() noexcept;
 
   CsvOutput(const CsvOutput &) = delete;
   CsvOutput &operator=(const CsvOutput &) = delete;
 
   void write(size_t TemporaryFileIndex, float Input, float Distance);
 
-  [[nodiscard]] llvm::Error finalize();
+  llvm::Error finalize();
 
 private:
   explicit CsvOutput(llvm::StringRef OutputPath);
 
-  void discardOutputFile();
-  void discardTemporaryFiles();
+  void discardOutputFile() noexcept;
+  void discardTemporaryFiles() noexcept;
 
   std::string OutputPath;
   std::unique_ptr<llvm::raw_fd_ostream> OutputFile;

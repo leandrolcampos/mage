@@ -24,14 +24,17 @@
 
 // Calling a pure virtual function is always a runtime error. Trap if the entry
 // point is ever reached.
-extern "C" void __cxa_pure_virtual() // NOLINT(readability-identifier-naming)
+extern "C" void
+__cxa_pure_virtual() noexcept // NOLINT(readability-identifier-naming)
 {
   __builtin_trap();
 }
 
 // The new operators are not part of the unit-test framework. They are defined
 // alongside the delete operators to satisfy misc-new-delete-overloads.
-void *operator new([[maybe_unused]] size_t Size, void *Ptr) { return Ptr; }
+void *operator new([[maybe_unused]] size_t Size, void *Ptr) noexcept {
+  return Ptr;
+}
 
 void *operator new(size_t Size) { return malloc(Size); }
 

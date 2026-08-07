@@ -22,15 +22,15 @@ namespace mage {
 namespace worst_cases {
 
 /// Reports aggregate progress from concurrent workers on a background thread.
-class ProgressReporter {
+class [[nodiscard]] ProgressReporter {
 public:
   ProgressReporter(bool Enabled, uint64_t Total);
-  ~ProgressReporter();
+  ~ProgressReporter() noexcept;
 
   ProgressReporter(const ProgressReporter &) = delete;
   ProgressReporter &operator=(const ProgressReporter &) = delete;
 
-  void add(uint64_t Amount);
+  void add(uint64_t Amount) noexcept;
   void finish();
 
 private:

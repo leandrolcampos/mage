@@ -32,12 +32,12 @@ void parallelize(size_t NumWorkItems, llvm::function_ref<void(size_t)> Fn);
 } // namespace detail
 
 /// Returns the number of threads available for parallel execution.
-[[nodiscard]] size_t getThreadCount();
+[[nodiscard]] size_t getThreadCount() noexcept;
 
 /// Returns the index of the thread executing the current work item.
 ///
 /// This function must only be called from a function invoked by parallelize().
-[[nodiscard]] unsigned getThreadIndex();
+[[nodiscard]] unsigned getThreadIndex() noexcept;
 
 /// Invokes \p Fn for every index in [0, \p NumWorkItems), possibly in parallel,
 /// and returns after all invocations complete.
