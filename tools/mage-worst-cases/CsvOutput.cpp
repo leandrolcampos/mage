@@ -13,8 +13,6 @@
 
 #include "CsvOutput.hpp"
 
-#include "mage/Support/Bit.hpp"
-
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/FileSystem.h"
@@ -50,7 +48,7 @@ namespace worst_cases {
 
 CsvOutput::CsvOutput(llvm::StringRef OutputPath) : OutputPath(OutputPath) {}
 
-CsvOutput::~CsvOutput() {
+CsvOutput::~CsvOutput() noexcept {
   discardOutputFile();
   discardTemporaryFiles();
 }
@@ -160,7 +158,7 @@ llvm::Error CsvOutput::finalize() {
   return llvm::Error::success();
 }
 
-void CsvOutput::discardOutputFile() {
+void CsvOutput::discardOutputFile() noexcept {
   if (OutputFile == nullptr)
     return;
 
@@ -170,7 +168,7 @@ void CsvOutput::discardOutputFile() {
   (void)llvm::sys::fs::remove(OutputPath);
 }
 
-void CsvOutput::discardTemporaryFiles() {
+void CsvOutput::discardTemporaryFiles() noexcept {
   for (size_t TemporaryFileIndex = 0;
        TemporaryFileIndex < TemporaryFiles.size(); ++TemporaryFileIndex) {
     if (TemporaryPaths[TemporaryFileIndex].empty())

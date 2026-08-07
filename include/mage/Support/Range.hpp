@@ -110,9 +110,8 @@ public:
   /// Returns a range representing partition \p PartitionIndex of
   /// \p NumPartitions disjoint partitions, assigning consecutive
   /// elements of this range to consecutive partitions.
-  [[nodiscard]] constexpr range
-  stridedPartition(size_type PartitionIndex,
-                   size_type NumPartitions) const noexcept {
+  constexpr range stridedPartition(size_type PartitionIndex,
+                                   size_type NumPartitions) const noexcept {
     const size_type RangeSize = size();
 
     assert((NumPartitions > 0) &&

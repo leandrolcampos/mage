@@ -21,30 +21,30 @@ namespace testing {
 
 // A class to log to standard error in the context of unit tests.
 struct TestLogger {
-  constexpr TestLogger() = default;
+  constexpr TestLogger() noexcept = default;
 
-  TestLogger &operator<<(const char *);
-  TestLogger &operator<<(decltype(nullptr));
-  TestLogger &operator<<(char);
-  TestLogger &operator<<(bool);
+  TestLogger &operator<<(const char *) noexcept;
+  TestLogger &operator<<(decltype(nullptr)) noexcept;
+  TestLogger &operator<<(char) noexcept;
+  TestLogger &operator<<(bool) noexcept;
 
-  TestLogger &operator<<(short);
-  TestLogger &operator<<(unsigned short);
-  TestLogger &operator<<(int);
-  TestLogger &operator<<(unsigned);
-  TestLogger &operator<<(long);
-  TestLogger &operator<<(unsigned long);
-  TestLogger &operator<<(long long);
-  TestLogger &operator<<(unsigned long long);
+  TestLogger &operator<<(short) noexcept;
+  TestLogger &operator<<(unsigned short) noexcept;
+  TestLogger &operator<<(int) noexcept;
+  TestLogger &operator<<(unsigned) noexcept;
+  TestLogger &operator<<(long) noexcept;
+  TestLogger &operator<<(unsigned long) noexcept;
+  TestLogger &operator<<(long long) noexcept;
+  TestLogger &operator<<(unsigned long long) noexcept;
 
-  TestLogger &operator<<(const void *);
+  TestLogger &operator<<(const void *) noexcept;
 
-  TestLogger &operator<<(_Float16);
-  TestLogger &operator<<(float);
-  TestLogger &operator<<(double);
+  TestLogger &operator<<(_Float16) noexcept;
+  TestLogger &operator<<(float) noexcept;
+  TestLogger &operator<<(double) noexcept;
 
   template <typename Enum, enable_if_t<is_enum_v<Enum>, int> = 0>
-  TestLogger &operator<<(Enum Value) {
+  TestLogger &operator<<(Enum Value) noexcept {
     using UnderlyingTy = underlying_type_t<Enum>;
 
     if constexpr (is_signed_v<UnderlyingTy>)
@@ -55,7 +55,7 @@ struct TestLogger {
 };
 
 // Returns the global test logger to be used in unit tests.
-TestLogger &tlog();
+[[nodiscard]] TestLogger &tlog() noexcept;
 
 } // namespace testing
 } // namespace mage

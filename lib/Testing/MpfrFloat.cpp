@@ -76,7 +76,7 @@ MpfrFloat::MpfrFloat(unsigned Precision, mpfr_rnd_t MpfrRounding,
   mpfr_custom_init_set(Value, MPFR_NAN_KIND, 0, MpfrPrecision, Storage);
 }
 
-MpfrFloat::~MpfrFloat() {
+MpfrFloat::~MpfrFloat() noexcept {
   if (OwnsStorage)
     mpfr_clear(Value);
 }

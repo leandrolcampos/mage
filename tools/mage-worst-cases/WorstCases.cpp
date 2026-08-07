@@ -97,7 +97,8 @@ static bool setDistanceBound(mpfr::MpfrFloat &DistanceBound,
   return mpfr_set_str(*DistanceBound, Storage.c_str(), 0, MPFR_RNDN) == 0;
 }
 
-static bool validateDistanceBound(const SearchConfigTy &SearchConfig) {
+[[nodiscard]] static bool
+validateDistanceBound(const SearchConfigTy &SearchConfig) {
   mpfr::MpfrFloat DistanceBound(SearchConfig.MpfrPrecision,
                                 RoundingMode::NearestTiesToEven);
   if (!setDistanceBound(DistanceBound, SearchConfig.DistanceBound)) {
@@ -119,10 +120,10 @@ static bool validateDistanceBound(const SearchConfigTy &SearchConfig) {
   return true;
 }
 
-static uint64_t searchPartition(const SearchConfigTy &SearchConfig,
-                                const range<float> &Partition,
-                                size_t PartitionIndex, CsvOutput *Output,
-                                ProgressReporter &Progress) {
+[[nodiscard]] static uint64_t
+searchPartition(const SearchConfigTy &SearchConfig,
+                const range<float> &Partition, size_t PartitionIndex,
+                CsvOutput *Output, ProgressReporter &Progress) {
   constexpr uint64_t ProgressUpdateInterval = uint64_t(1) << 20;
 
   uint64_t WorstCaseCount = 0;
@@ -176,8 +177,8 @@ static uint64_t searchPartition(const SearchConfigTy &SearchConfig,
   return WorstCaseCount;
 }
 
-const FunctionConfigTy *
-mage::worst_cases::findMathFunctionConfig(llvm::StringRef FunctionName) {
+const FunctionConfigTy *mage::worst_cases::findMathFunctionConfig(
+    llvm::StringRef FunctionName) noexcept {
   for (const FunctionConfigTy &FunctionConfig : FunctionConfigs)
     if (FunctionConfig.Name == FunctionName)
       return &FunctionConfig;

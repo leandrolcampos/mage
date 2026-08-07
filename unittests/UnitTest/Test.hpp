@@ -33,7 +33,8 @@ enum class TestCond { EQ, NE, LT, LE, GT, GE };
 namespace detail {
 
 struct Location {
-  constexpr Location(const char *File, int Line) : File(File), Line(Line) {}
+  constexpr Location(const char *File, int Line) noexcept
+      : File(File), Line(Line) {}
 
   const char *File;
   int Line;
@@ -43,11 +44,13 @@ class RunContext {
 public:
   enum class RunResult : bool { Pass, Fail };
 
-  RunResult status() const { return Status; }
-  bool hasFatalFailure() const { return HasFatalFailure; }
+  [[nodiscard]] RunResult status() const noexcept { return Status; }
+  [[nodiscard]] bool hasFatalFailure() const noexcept {
+    return HasFatalFailure;
+  }
 
-  void markFail() { Status = RunResult::Fail; }
-  void markFatalFail() {
+  void markFail() noexcept { Status = RunResult::Fail; }
+  void markFatalFail() noexcept {
     markFail();
     HasFatalFailure = true;
   }
@@ -57,9 +60,10 @@ private:
   bool HasFatalFailure = false;
 };
 
-TestLogger &operator<<(TestLogger &Logger, Location Loc);
+TestLogger &operator<<(TestLogger &Logger, Location Loc) noexcept;
 
-template <TestCond Cond> constexpr const char *getConditionString() {
+template <TestCond Cond>
+[[nodiscard]] constexpr const char *getConditionString() noexcept {
   if constexpr (Cond == TestCond::EQ)
     return "equal to";
   if constexpr (Cond == TestCond::NE)
@@ -77,7 +81,7 @@ template <TestCond Cond> constexpr const char *getConditionString() {
   __builtin_unreachable();
 }
 
-constexpr size_t getStringLength(const char *Str) {
+[[nodiscard]] constexpr size_t getStringLength(const char *Str) noexcept {
   if (Str == nullptr)
     return 0;
 
@@ -89,7 +93,7 @@ constexpr size_t getStringLength(const char *Str) {
 }
 
 template <TestCond Cond, typename LHSType, typename RHSType>
-bool evaluate(const LHSType &LHS, const RHSType &RHS) {
+[[nodiscard]] bool evaluate(const LHSType &LHS, const RHSType &RHS) {
   if constexpr (Cond == TestCond::EQ)
     return LHS == RHS;
   if constexpr (Cond == TestCond::NE)
@@ -107,7 +111,7 @@ bool evaluate(const LHSType &LHS, const RHSType &RHS) {
 }
 
 template <TestCond Cond>
-bool evaluateCString(const char *LHS, const char *RHS) {
+[[nodiscard]] bool evaluateCString(const char *LHS, const char *RHS) noexcept {
   const bool Equal =
       LHS == RHS || (LHS != nullptr && RHS != nullptr && strcmp(LHS, RHS) == 0);
   if constexpr (Cond == TestCond::EQ)
@@ -153,14 +157,14 @@ bool test(RunContext *Ctx, const LHSType &LHS, const RHSType &RHS,
 
 class Test {
 public:
-  virtual ~Test();
+  virtual ~Test() noexcept;
   virtual void setUp() {}
   virtual void tearDown() {}
 
-  static int runTests();
+  [[nodiscard]] static int runTests();
 
 protected:
-  constexpr Test() = default;
+  constexpr Test() noexcept = default;
 
   template <TestCond Cond, bool IsCString = false, typename LHSType,
             typename RHSType>
@@ -169,18 +173,18 @@ protected:
     return detail::test<Cond, IsCString>(Ctx, LHS, RHS, LHSStr, RHSStr, Loc);
   }
 
-  static void addTest(Test *T);
+  static void addTest(Test *T) noexcept;
 
 private:
-  void setContext(detail::RunContext *C) { Ctx = C; }
+  void setContext(detail::RunContext *C) noexcept { Ctx = C; }
 
-  virtual const char *getName() const = 0;
+  [[nodiscard]] virtual const char *getName() const noexcept = 0;
   virtual void run() = 0;
 
   detail::RunContext *Ctx = nullptr;
   Test *Next = nullptr;
 
-  static int getNumTests();
+  [[nodiscard]] static int getNumTests() noexcept;
 
   static Test *Start;
   static Test *End;
@@ -199,7 +203,9 @@ private:
                                                                                \
   private:                                                                     \
     void run() override;                                                       \
-    const char *getName() const override { return #SuiteName "." #TestName; }  \
+    const char *getName() const noexcept override {                            \
+      return #SuiteName "." #TestName;                                         \
+    }                                                                          \
   };                                                                           \
                                                                                \
   SuiteName##_##TestName SuiteName##_##TestName##_Instance;                    \
@@ -214,7 +220,9 @@ private:
                                                                                \
   private:                                                                     \
     void run() override;                                                       \
-    const char *getName() const override { return #SuiteClass "." #TestName; } \
+    const char *getName() const noexcept override {                            \
+      return #SuiteClass "." #TestName;                                        \
+    }                                                                          \
   };                                                                           \
                                                                                \
   SuiteClass##_##TestName SuiteClass##_##TestName##_Instance;                  \

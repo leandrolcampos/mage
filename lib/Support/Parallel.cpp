@@ -19,9 +19,13 @@
 #include <assert.h>
 #include <atomic>
 
-size_t mage::getThreadCount() { return llvm::parallel::getThreadCount(); }
+size_t mage::getThreadCount() noexcept {
+  return llvm::parallel::getThreadCount();
+}
 
-unsigned mage::getThreadIndex() { return llvm::parallel::getThreadIndex(); }
+unsigned mage::getThreadIndex() noexcept {
+  return llvm::parallel::getThreadIndex();
+}
 
 void mage::detail::parallelize(size_t NumWorkItems,
                                llvm::function_ref<void(size_t)> Fn) {

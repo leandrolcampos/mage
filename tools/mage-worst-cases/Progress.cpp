@@ -48,9 +48,9 @@ ProgressReporter::ProgressReporter(bool Enabled, uint64_t Total)
     Thread = std::thread([this] { reportProgress(); });
 }
 
-ProgressReporter::~ProgressReporter() { finish(); }
+ProgressReporter::~ProgressReporter() noexcept { finish(); }
 
-void ProgressReporter::add(uint64_t Amount) {
+void ProgressReporter::add(uint64_t Amount) noexcept {
   if (Enabled)
     Processed.fetch_add(Amount, std::memory_order_relaxed);
 }

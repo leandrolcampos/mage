@@ -152,7 +152,7 @@ static void computeNearestDistance(mpfr::MpfrFloat &Distance,
 
 bool mage::worst_cases::computeBreakpointDistance(
     mpfr::MpfrFloat &Distance, const mpfr::MpfrFloat &FunctionValue,
-    RoundingGroupTy RoundingGroup) {
+    RoundingGroupTy RoundingGroup) noexcept {
   if (mpfr_number_p(*FunctionValue) == 0)
     return false;
 

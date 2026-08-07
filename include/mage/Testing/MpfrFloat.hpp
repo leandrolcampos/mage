@@ -67,10 +67,10 @@ template <typename T>
                   "unsupported floating-point type");
 }
 
-class MpfrFloat {
+class [[nodiscard]] MpfrFloat {
 public:
   explicit MpfrFloat(unsigned Precision, RoundingMode Rounding);
-  ~MpfrFloat();
+  ~MpfrFloat() noexcept;
 
   MpfrFloat(const MpfrFloat &) = delete;
   MpfrFloat &operator=(const MpfrFloat &) = delete;

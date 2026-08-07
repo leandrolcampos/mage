@@ -23,14 +23,14 @@ using namespace mage;
 
 testing::TestLogger &
 testing::detail::operator<<(testing::TestLogger &Logger,
-                            testing::detail::Location Loc) {
+                            testing::detail::Location Loc) noexcept {
   return Logger << Loc.File << ':' << Loc.Line << ": FAILURE\n";
 }
 
 namespace mage {
 namespace testing {
 
-Test::~Test() = default;
+Test::~Test() noexcept = default;
 
 int Test::runTests() {
   const int TestCount = getNumTests();
@@ -88,7 +88,7 @@ int Test::runTests() {
   return 1;
 }
 
-void Test::addTest(Test *T) {
+void Test::addTest(Test *T) noexcept {
   if (End == nullptr) {
     Start = T;
     End = T;
@@ -99,7 +99,7 @@ void Test::addTest(Test *T) {
   End = T;
 }
 
-int Test::getNumTests() {
+int Test::getNumTests() noexcept {
   int N = 0;
   for (Test *T = Start; T != nullptr; T = T->Next)
     ++N;
