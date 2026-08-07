@@ -13,6 +13,8 @@
 
 #include "mage/Testing/MpfrFloat.hpp"
 
+#include <mpfr.h>
+
 #include <assert.h>
 
 using namespace mage;

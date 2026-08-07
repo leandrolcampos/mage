@@ -14,6 +14,11 @@
 #include "mage/Offload/Execution.hpp"
 #include "UnitTest/Test.hpp"
 
+#include "mage/Offload/Context.hpp"
+#include "mage/Offload/Memory.hpp"
+#include "mage/Offload/Module.hpp"
+#include "mage/Support/TypeTraits.hpp"
+
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/FileSystem.h"

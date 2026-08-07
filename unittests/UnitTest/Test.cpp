@@ -19,6 +19,8 @@
 
 #include "UnitTest/Test.hpp"
 
+#include "UnitTest/TestLogger.hpp"
+
 using namespace mage;
 
 testing::TestLogger &

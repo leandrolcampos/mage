@@ -17,9 +17,12 @@
 #include "llvm/Support/raw_ostream.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cassert>
 #include <chrono>
 #include <limits>
+#include <stdint.h>
+#include <thread>
 
 static void printProgress(uint64_t Processed, uint64_t Total) {
   constexpr unsigned ProgressBarWidth = 40;

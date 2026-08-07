@@ -13,11 +13,13 @@
 
 #include "mage/Support/Parallel.hpp"
 
+#include "llvm/ADT/STLFunctionalExtras.h"
 #include "llvm/Support/Parallel.h"
 
 #include <algorithm>
 #include <assert.h>
 #include <atomic>
+#include <stddef.h>
 
 size_t mage::getThreadCount() noexcept {
   return llvm::parallel::getThreadCount();
