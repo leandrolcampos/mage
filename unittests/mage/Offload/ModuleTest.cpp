@@ -48,10 +48,10 @@ static const char *getDeviceImageTargetTriple(DeviceAPI API) noexcept {
 
 static llvm::SmallString<256> getDeviceImagePath(DeviceAPI API) {
   llvm::SmallString<256> Path(
-      MAGE_DEVICE_IMAGE_OFFLOADMODULETESTDEVICEIMAGE_DIR);
+      MAGE_DEVICE_IMAGE_MODULE_TEST_DIR);
 
   std::string FileName =
-      std::string(MAGE_DEVICE_IMAGE_OFFLOADMODULETESTDEVICEIMAGE_FILE_STEM) +
+      std::string(MAGE_DEVICE_IMAGE_MODULE_TEST_FILE_PREFIX) +
       "." + getDeviceImageTargetTriple(API) + ".bin";
   llvm::sys::path::append(Path, FileName);
   return Path;
