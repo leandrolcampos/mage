@@ -20,6 +20,8 @@ add_mage_unittest(
 
 add_mage_device_image(
   OffloadModuleTestDeviceImage
+  METADATA_ID
+    MODULE_TEST
   SRCS
     DeviceCode/ModuleSymbols.cpp
   BUILD_KINDS
@@ -42,6 +44,8 @@ add_mage_unittest(
 
 add_mage_device_image(
   OffloadExecutionTestDeviceImage
+  METADATA_ID
+    EXECUTION_TEST
   SRCS
     DeviceCode/ExecutionKernels.cpp
   BUILD_KINDS

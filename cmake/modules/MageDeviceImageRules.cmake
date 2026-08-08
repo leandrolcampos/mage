@@ -7,6 +7,7 @@ include_guard(GLOBAL)
 # Usage:
 #   add_mage_device_image(
 #     <target name>
+#     METADATA_ID <C/C++ macro identifier fragment>
 #     SRCS <list of source files>
 #     [OUTPUT_SUBDIR <subdir under the device image root directory>]
 #     [BUILD_KINDS <HOST|GPU>...]
@@ -22,10 +23,14 @@ include_guard(GLOBAL)
 #
 # COMPILE_OPTIONS applies to SRCS. Sources from DEPENDS are compiled with
 # the options of their object libraries.
+#
+# METADATA_ID must match [A-Z][A-Z0-9_]* and is used to define
+# MAGE_DEVICE_IMAGE_<METADATA_ID>_DIR and
+# MAGE_DEVICE_IMAGE_<METADATA_ID>_FILE_PREFIX for host consumers.
 function(add_mage_device_image target_name)
   cmake_parse_arguments(MAGE_DEVICE_IMAGE
     "NO_COMMON_COMPILE_OPTIONS;NO_COMMON_LINK_OPTIONS"
-    "OUTPUT_SUBDIR"
+    "METADATA_ID;OUTPUT_SUBDIR"
     "SRCS;BUILD_KINDS;DEPENDS;COMPILE_OPTIONS;LINK_OPTIONS;LINK_LIBRARIES"
     ${ARGN})
 
@@ -40,10 +45,18 @@ function(add_mage_device_image target_name)
       "add_mage_device_image(${target_name}) requires SRCS and/or DEPENDS")
   endif()
 
+  if((NOT DEFINED MAGE_DEVICE_IMAGE_METADATA_ID) OR
+     (MAGE_DEVICE_IMAGE_METADATA_ID STREQUAL ""))
+    message(FATAL_ERROR
+      "add_mage_device_image(${target_name}) requires METADATA_ID")
+  endif()
+
   _mage_set_target_build_kinds(
     "${target_name}" "${MAGE_DEVICE_IMAGE_BUILD_KINDS}")
   _mage_register_device_image(
-    "${target_name}" "${MAGE_DEVICE_IMAGE_OUTPUT_SUBDIR}")
+    "${target_name}"
+    "${MAGE_DEVICE_IMAGE_METADATA_ID}"
+    "${MAGE_DEVICE_IMAGE_OUTPUT_SUBDIR}")
 
   _mage_build_kinds_include_current_build_kind(
     device_image_enabled "${MAGE_DEVICE_IMAGE_BUILD_KINDS}")
@@ -119,13 +132,13 @@ function(add_mage_device_image target_name)
   endif()
 
   _mage_get_device_image_property(
-    file_stem "${target_name}" FILE_STEM)
+    file_prefix "${target_name}" FILE_PREFIX)
   _mage_get_device_image_property(
     output_dir "${target_name}" OUTPUT_DIR)
 
   set_target_properties(${target_name} PROPERTIES
     PREFIX ""
-    OUTPUT_NAME "${file_stem}.${MAGE_TARGET_TRIPLE}"
+    OUTPUT_NAME "${file_prefix}.${MAGE_TARGET_TRIPLE}"
     SUFFIX ".bin"
     "${output_directory_property}" "${output_dir}"
     MAGE_TARGET_TYPE "${MAGE_DEVICE_IMAGE_TARGET_TYPE}"

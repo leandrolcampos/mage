@@ -447,12 +447,30 @@ function(_mage_get_device_image_output_dir out_var output_subdir)
   set(${out_var} "${output_dir}" PARENT_SCOPE)
 endfunction()
 
-function(_mage_register_device_image target_name output_subdir)
+function(_mage_register_device_image target_name metadata_id output_subdir)
   get_property(device_image_targets GLOBAL PROPERTY MAGE_DEVICE_IMAGE_TARGETS)
 
   if("${target_name}" IN_LIST device_image_targets)
     message(FATAL_ERROR
       "device image '${target_name}' has already been registered")
+  endif()
+
+  if(NOT "${metadata_id}" MATCHES "^[A-Z][A-Z0-9_]*$")
+    message(FATAL_ERROR
+      "device image metadata ID '${metadata_id}' is invalid; expected a value "
+      "matching ^[A-Z][A-Z0-9_]*$")
+  endif()
+
+  set(metadata_id_property
+    "MAGE_DEVICE_IMAGE_TARGET_FOR_METADATA_ID_${metadata_id}")
+  get_property(metadata_id_registered GLOBAL PROPERTY
+    "${metadata_id_property}" SET)
+
+  if(metadata_id_registered)
+    get_property(existing_target GLOBAL PROPERTY "${metadata_id_property}")
+    message(FATAL_ERROR
+      "device image metadata ID '${metadata_id}' is already used by "
+      "'${existing_target}'; it cannot also be used by '${target_name}'")
   endif()
 
   _mage_get_device_image_output_dir(output_dir "${output_subdir}")
@@ -463,17 +481,24 @@ function(_mage_register_device_image target_name output_subdir)
   set_property(GLOBAL PROPERTY
     "MAGE_DEVICE_IMAGE_OUTPUT_DIR_FOR_${target_name}" "${output_dir}")
   set_property(GLOBAL PROPERTY
-    "MAGE_DEVICE_IMAGE_FILE_STEM_FOR_${target_name}" "${target_name}")
+    "MAGE_DEVICE_IMAGE_FILE_PREFIX_FOR_${target_name}" "${target_name}")
+  set_property(GLOBAL PROPERTY
+    "MAGE_DEVICE_IMAGE_METADATA_ID_FOR_${target_name}" "${metadata_id}")
+  set_property(GLOBAL PROPERTY
+    "${metadata_id_property}" "${target_name}")
 endfunction()
 
 function(_mage_get_device_image_property out_var target_name property_name)
-  get_property(property_value GLOBAL PROPERTY
+  set(global_property_name
     "MAGE_DEVICE_IMAGE_${property_name}_FOR_${target_name}")
+  get_property(property_is_set GLOBAL PROPERTY "${global_property_name}" SET)
 
-  if(NOT property_value)
+  if(NOT property_is_set)
     message(FATAL_ERROR
       "unknown Mage device image '${target_name}'")
   endif()
+
+  get_property(property_value GLOBAL PROPERTY "${global_property_name}")
 
   set(${out_var} "${property_value}" PARENT_SCOPE)
 endfunction()
@@ -486,18 +511,6 @@ function(_mage_get_registered_device_images out_var)
   endif()
 
   set(${out_var} "${device_image_targets}" PARENT_SCOPE)
-endfunction()
-
-function(_mage_get_device_image_definition_id out_var target_name)
-  # Convert the CMake target name into a valid C/C++ macro-name fragment.
-  string(REGEX REPLACE "[^A-Za-z0-9]" "_" definition_id "${target_name}")
-  string(TOUPPER "${definition_id}" definition_id)
-
-  if(definition_id MATCHES "^[0-9]")
-    set(definition_id "_${definition_id}")
-  endif()
-
-  set(${out_var} "${definition_id}" PARENT_SCOPE)
 endfunction()
 
 function(_mage_register_device_image_host_consumer
@@ -534,14 +547,14 @@ function(_mage_add_device_images_to_host_consumer
     _mage_get_device_image_property(
       output_dir "${device_image_target}" OUTPUT_DIR)
     _mage_get_device_image_property(
-      file_stem "${device_image_target}" FILE_STEM)
-    _mage_get_device_image_definition_id(
-      definition_id "${device_image_target}")
+      file_prefix "${device_image_target}" FILE_PREFIX)
+    _mage_get_device_image_property(
+      metadata_id "${device_image_target}" METADATA_ID)
 
     target_compile_definitions("${host_consumer_target}"
       PRIVATE
-        "MAGE_DEVICE_IMAGE_${definition_id}_DIR=\"${output_dir}\""
-        "MAGE_DEVICE_IMAGE_${definition_id}_FILE_STEM=\"${file_stem}\"")
+        "MAGE_DEVICE_IMAGE_${metadata_id}_DIR=\"${output_dir}\""
+        "MAGE_DEVICE_IMAGE_${metadata_id}_FILE_PREFIX=\"${file_prefix}\"")
 
     if(TARGET "${device_image_target}")
       add_dependencies("${host_consumer_target}" "${device_image_target}")
