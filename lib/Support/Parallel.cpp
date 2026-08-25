@@ -19,14 +19,33 @@
 #include <algorithm>
 #include <assert.h>
 #include <atomic>
+#include <limits.h>
 #include <stddef.h>
+
+namespace {
+
+std::atomic<unsigned> NextThreadIndex = 0;
+thread_local unsigned ThreadIndex = UINT_MAX;
+
+} // namespace
+
+static void initializeThreadIndex() noexcept {
+  if (ThreadIndex != UINT_MAX)
+    return;
+
+  ThreadIndex = NextThreadIndex.fetch_add(1, std::memory_order_relaxed);
+  assert(ThreadIndex < mage::getThreadCount() &&
+         "parallel worker index exceeds the available thread count");
+}
 
 size_t mage::getThreadCount() noexcept {
   return llvm::parallel::getThreadCount();
 }
 
 unsigned mage::getThreadIndex() noexcept {
-  return llvm::parallel::getThreadIndex();
+  assert(ThreadIndex != UINT_MAX &&
+         "getThreadIndex() must be called from a parallel worker");
+  return ThreadIndex;
 }
 
 void mage::detail::parallelize(size_t NumWorkItems,
@@ -40,6 +59,8 @@ void mage::detail::parallelize(size_t NumWorkItems,
 
   std::atomic<size_t> NextItemIndex = 0;
   auto Worker = [&] {
+    initializeThreadIndex();
+
     while (true) {
       const size_t ItemIndex =
           NextItemIndex.fetch_add(1, std::memory_order_relaxed);

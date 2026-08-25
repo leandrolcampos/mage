@@ -220,6 +220,13 @@ function(mage_add_gpu_build gpu_target_triple)
       "-DMAGE_GPU_TEST_PARALLELISM:STRING=${MAGE_GPU_TEST_PARALLELISM}")
   endif()
 
+  # CMake detects linker capabilities from the host linker when CXX is enabled.
+  # NVPTX links use nvlink instead, which does not support --dependency-file.
+  if(gpu_target_triple STREQUAL "nvptx64-nvidia-cuda")
+    list(APPEND gpu_build_cmake_args
+      "-DCMAKE_LINK_DEPENDS_USE_LINKER:BOOL=OFF")
+  endif()
+
   ExternalProject_Add("${gpu_build_config_target}"
     PREFIX "${CMAKE_BINARY_DIR}/.gpu-builds/${gpu_target_triple}"
     SOURCE_DIR "${CMAKE_SOURCE_DIR}"
