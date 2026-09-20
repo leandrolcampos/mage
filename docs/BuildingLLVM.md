@@ -3,8 +3,8 @@
 This document outlines the steps to configure, build, and test the LLVM fork used by the Mage research project.
 
 The process was validated on the following system:
-* **OS:** Ubuntu 24.04.4 LTS
-* **Kernel Version:** Linux 6.17.0-19-generic
+* **OS:** Ubuntu 26.04.1 LTS
+* **Kernel Version:** Linux 7.0.0-31-generic
 * **Hardware Model**: ASUS ProArt X870E-CREATOR WIFI
 * **Processor:** AMD Ryzen 9 9950X (32 cores)
 * **Memory:** 32 GB
@@ -48,7 +48,8 @@ Append the following paths to your `~/.bashrc` to ensure the build system can lo
 ```bash
 echo 'export CUDA_HOME="/usr/local/cuda"' >> ~/.bashrc
 echo 'export LLVM_ROOT="$HOME/opt/llvm"' >> ~/.bashrc
-echo 'export PATH="$CUDA_HOME/bin:$LLVM_ROOT/bin:$PATH"' >> ~/.bashrc
+echo 'export PATH="$CUDA_HOME/bin:$LLVM_ROOT/bin${PATH:+:$PATH}"' >> ~/.bashrc
+echo 'export LD_LIBRARY_PATH="/opt/rocm/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"' >> ~/.bashrc
 ```
 
 Activate the changes and confirm the variable is set:
