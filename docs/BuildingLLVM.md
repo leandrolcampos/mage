@@ -27,9 +27,9 @@ nvidia-smi
 
 ## 3. Install the AMDGPU Stack
 
-Follow the official instructions in the [AMDGPU documentation](https://rocm.docs.amd.com/projects/radeon-ryzen/en/latest/docs/install/installrad/native_linux/install-radeon.html) to install the open-source graphics and the ROCm.
+Follow the official instructions in the [AMD ROCm documentation](https://rocm.docs.amd.com/en/latest/install/rocm.html) to install the AMD GPU Driver (amdgpu) and the ROCm Full Suite.
 
-Check if the AMDGPU kernel driver is installed:
+Check if the AMD GPU Driver (amdgpu) is installed:
 
 ```bash
 dkms status
@@ -39,12 +39,6 @@ Check if the GPU is listed as an available agent:
 
 ```bash
 rocminfo
-```
-
-Verify if the GPU is recognized by OpenCL:
-
-```bash
-clinfo
 ```
 
 ## 4. Set Up Environment Variables
@@ -76,6 +70,7 @@ sudo apt -y install \
   cmake \
   gcc-multilib \
   git \
+  libmpfr-dev \
   ninja-build \
   python3 \
   python3-pip
